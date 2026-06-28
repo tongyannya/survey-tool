@@ -31,7 +31,7 @@
     <div class="map-float map-search">
       <div class="search-box"><input id="searchInput" type="text" placeholder="输入地名，回车搜索"><button id="searchBtn">搜索</button></div>
       <div id="searchResults" class="search-results"></div>
-      <div class="quick-btns" id="quickBtns"><button id="btnLocate" class="minor-btn">定位到我</button><button id="btnAddBm" class="minor-btn" title="保存当前位置">+</button></div>
+      <div class="quick-btns" id="quickBtns"><button id="btnLocate" class="minor-btn gps-locate-btn" title="定位到我"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg></button><label class="gps-track-toggle" title="位置追踪"><input type="checkbox" id="gpsTrackToggle"><span class="gps-track-slider"></span></label><button id="btnAddBm" class="minor-btn" title="保存当前位置">+</button></div>
     </div>
 
     <div class="map-float map-base">
@@ -135,13 +135,16 @@
   <div class="modal-actions"><button id="impCancel">取消</button><button id="impGoAll">导入到所有模式</button><button id="impGo" class="go">导入到当前模式</button></div>
 </div></div>
 
-<script src="js/coords.js?v=20260624e"></script>
-<script src="js/app-state.js?v=20260624e"></script>
-<script src="js/app-map.js?v=20260624e"></script>
-<script src="js/app-points.js?v=20260624e"></script>
-<script src="js/app-sync.js?v=20260624e"></script>
-<script src="js/app-analysis.js?v=20260624e"></script>
-<script src="js/app-import.js?v=20260624e"></script>
-<script src="js/app-ui.js?v=20260624e"></script>
+<script src="js/coords.js?v=20260628d"></script>
+<script src="js/app-state.js?v=20260628d"></script>
+<script src="js/app-map.js?v=20260628d"></script>
+<script src="js/app-points.js?v=20260628d"></script>
+<script src="js/app-render.js?v=20260628d"></script>
+<script src="js/app-triangulation.js?v=20260628d"></script>
+<script src="js/app-sync.js?v=20260628d"></script>
+<script src="js/app-analysis.js?v=20260628d"></script>
+<script src="js/app-import.js?v=20260628d"></script>
+<script src="js/app-gps.js?v=20260628d"></script>
+<script src="js/app-ui.js?v=20260628d"></script>
 </body>
 </html>

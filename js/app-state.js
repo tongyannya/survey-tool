@@ -7,21 +7,18 @@ const M={
   notes:[],
 };
 
-/* ===== 多导线路由 ===== */
-function activeRoute(){return M.trav.routes.find(r=>r.id===M.trav.activeRouteId)||null;}
-function allTravPts(){return M.trav.routes.flatMap(r=>r.pts);}
-Object.defineProperty(M.trav,'pts',{get(){const r=activeRoute();return r?r.pts:[];},set(v){const r=activeRoute();if(r)r.pts=v;},configurable:true,enumerable:false});
-function createRoute(name,prefix,parentId){const r={id:++uid,name,prefix:prefix||``,pts:[],closed:false,hidden:false,locked:false,expanded:true,parentId:parentId||null};M.trav.routes.push(r);M.trav.activeRouteId=r.id;return r;}
-function deleteRoute(rid){const r=M.trav.routes.find(x=>x.id===rid);if(!r)return;r.pts.forEach(p=>map.removeLayer(p.marker));const kids=M.trav.routes.filter(x=>x.parentId===rid);kids.forEach(c=>c.pts.forEach(p=>map.removeLayer(p.marker)));M.trav.routes=M.trav.routes.filter(x=>x.id!==rid&&x.parentId!==rid);if(M.trav.activeRouteId===rid||kids.some(c=>c.id===M.trav.activeRouteId))M.trav.activeRouteId=M.trav.routes.length?M.trav.routes[0].id:null;}
-function setActiveRouteId(rid){M.trav.activeRouteId=rid;selectedPtIds.clear();}
-
-/* ===== 多水准路线 ===== */
-function activeLevRoute(){return M.lev.routes.find(r=>r.id===M.lev.activeRouteId)||null;}
-function allLevPts(){return M.lev.routes.flatMap(r=>r.pts);}
-Object.defineProperty(M.lev,'pts',{get(){const r=activeLevRoute();return r?r.pts:[];},set(v){const r=activeLevRoute();if(r)r.pts=v;},configurable:true,enumerable:false});
-function createLevRoute(name,prefix,parentId){const r={id:++uid,name,prefix:prefix||``,pts:[],closed:false,hidden:false,locked:false,expanded:true,parentId:parentId||null};M.lev.routes.push(r);M.lev.activeRouteId=r.id;return r;}
-function deleteLevRoute(rid){const r=M.lev.routes.find(x=>x.id===rid);if(!r)return;r.pts.forEach(p=>map.removeLayer(p.marker));const kids=M.lev.routes.filter(x=>x.parentId===rid);kids.forEach(c=>c.pts.forEach(p=>map.removeLayer(p.marker)));M.lev.routes=M.lev.routes.filter(x=>x.id!==rid&&x.parentId!==rid);if(M.lev.activeRouteId===rid||kids.some(c=>c.id===M.lev.activeRouteId))M.lev.activeRouteId=M.lev.routes.length?M.lev.routes[0].id:null;}
-function setActiveLevRouteId(rid){M.lev.activeRouteId=rid;selectedPtIds.clear();}
+/* ===== 路线通用操作（导线 / 水准共用） ===== */
+const ROUTE_LABEL={trav:`导线`,lev:`水准路线`};
+function activeRouteOf(mode){return M[mode].routes.find(r=>r.id===M[mode].activeRouteId)||null;}
+function allRoutePts(mode){return M[mode].routes.flatMap(r=>r.pts);}
+function createRouteOf(mode,name,prefix,parentId){const r={id:++uid,name,prefix:prefix||``,pts:[],closed:false,hidden:false,locked:false,expanded:true,parentId:parentId||null};M[mode].routes.push(r);M[mode].activeRouteId=r.id;return r;}
+function deleteRouteOf(mode,rid){const r=M[mode].routes.find(x=>x.id===rid);if(!r)return;r.pts.forEach(p=>map.removeLayer(p.marker));const kids=M[mode].routes.filter(x=>x.parentId===rid);kids.forEach(c=>c.pts.forEach(p=>map.removeLayer(p.marker)));M[mode].routes=M[mode].routes.filter(x=>x.id!==rid&&x.parentId!==rid);if(M[mode].activeRouteId===rid||kids.some(c=>c.id===M[mode].activeRouteId))M[mode].activeRouteId=M[mode].routes.length?M[mode].routes[0].id:null;}
+function setActiveRouteIdOf(mode,rid){M[mode].activeRouteId=rid;selectedPtIds.clear();}
+[`trav`,`lev`].forEach(mode=>{Object.defineProperty(M[mode],`pts`,{get(){const r=activeRouteOf(mode);return r?r.pts:[];},set(v){const r=activeRouteOf(mode);if(r)r.pts=v;},configurable:true,enumerable:false});});
+function activeRoute(){return activeRouteOf(`trav`);}
+function activeLevRoute(){return activeRouteOf(`lev`);}
+function allTravPts(){return allRoutePts(`trav`);}
+function allLevPts(){return allRoutePts(`lev`);}
 
 let cur=`gnss`;
 let selectedPtIds=new Set();
@@ -30,7 +27,7 @@ const CIRC=`①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳`;
 function circ(n){return n<=20?CIRC[n-1]:`(${n})`;}
 const m=()=>M[cur];
 const panels={design:false,points:false,analysis:false};let floatOpen=null;
-function label(mode,i){const p=M[mode].pts[i];if(p&&p.name)return p.name;let pfx=M[mode].prefix;if(mode===`trav`){const r=activeRoute();if(r&&r.prefix)pfx=r.prefix;}else if(mode===`lev`){const r=activeLevRoute();if(r&&r.prefix)pfx=r.prefix;}return pfx+String(i+1).padStart(2,`0`);}
+function label(mode,i){const p=M[mode].pts[i];if(p&&p.name)return p.name;let pfx=M[mode].prefix;if(mode===`trav`||mode===`lev`){const r=activeRouteOf(mode);if(r&&r.prefix)pfx=r.prefix;}return pfx+String(i+1).padStart(2,`0`);}
 function pointById(mode,id){return M[mode].pts.find(p=>p.id===id);}
 function keyOf(a,b){return a<b?a+`-`+b:b+`-`+a;}
 function toast(t){const el=document.getElementById(`toast`);el.textContent=t;el.classList.add(`show`);clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove(`show`),2200);}
