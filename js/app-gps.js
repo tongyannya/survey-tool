@@ -8,7 +8,7 @@ function _gpsMed(arr){const s=arr.slice().sort((a,b)=>a-b),m=Math.floor(s.length
 
 function gpsMultiSample(onDone,onProgress){
   if(!navigator.geolocation){toast('浏览器不支持定位');return null;}
-  const smp=[];const N=10;const TM=20000;
+  const smp=[];const N=5;const TM=20000;
   let wid=null,tid=null,fin=false;
   function done(){
     if(fin)return;fin=true;
@@ -34,16 +34,16 @@ function gpsMultiSample(onDone,onProgress){
 }
 
 /* ---- 位置追踪 ---- */
-const gpsTracker={active:false,watchId:null,marker:null,accCircle:null,hdMarker:null,heading:null,lastPos:null,_oh:null};
+const gpsTracker={active:false,watchId:null,accCircle:null,hdMarker:null,heading:null,lastPos:null,_oh:null};
 
 function _gpsHdIcon(deg){
-  return L.divIcon({className:'',html:'<div class="gps-heading" style="transform:rotate('+deg+'deg)"><svg width="28" height="28" viewBox="0 0 28 28"><path d="M14 2L20 14L14 10L8 14Z" fill="#4285F4" opacity="0.6"/></svg></div>',iconSize:[28,28],iconAnchor:[14,14]});
+  return L.divIcon({className:'',html:'<div class="gps-heading" style="transform:rotate('+deg+'deg)"><svg width="28" height="28" viewBox="0 0 28 28"><path d="M14 2L20 14L14 10L8 14Z" fill="#4285F4" opacity="0.85"/><circle cx="14" cy="12" r="4" fill="#4285F4" stroke="#fff" stroke-width="1.5"/></svg></div>',iconSize:[28,28],iconAnchor:[14,14]});
 }
 
 function _gpsHd(ll){
-  if(gpsTracker.heading===null){if(gpsTracker.hdMarker){map.removeLayer(gpsTracker.hdMarker);gpsTracker.hdMarker=null;}return;}
-  if(!gpsTracker.hdMarker)gpsTracker.hdMarker=L.marker(ll,{icon:_gpsHdIcon(gpsTracker.heading),interactive:false,pane:'gpsPane'}).addTo(map);
-  else gpsTracker.hdMarker.setLatLng(ll).setIcon(_gpsHdIcon(gpsTracker.heading));
+  const deg=gpsTracker.heading!==null?gpsTracker.heading:0;
+  if(!gpsTracker.hdMarker)gpsTracker.hdMarker=L.marker(ll,{icon:_gpsHdIcon(deg),interactive:false,pane:'gpsPane'}).addTo(map);
+  else gpsTracker.hdMarker.setLatLng(ll).setIcon(_gpsHdIcon(deg));
 }
 
 function startTracking(){
@@ -55,11 +55,9 @@ function startTracking(){
     const a=pos.coords.accuracy||10;
     gpsTracker.lastPos={lat:w.lat,lng:w.lng,accuracy:a};
     const d=displayLL(w);
-    if(!gpsTracker.marker){
-      gpsTracker.marker=L.circleMarker(d,{radius:8,fillColor:'#4285F4',fillOpacity:0.9,color:'#fff',weight:2.5,interactive:false,pane:'gpsPane'}).addTo(map);
+    if(!gpsTracker.accCircle){
       gpsTracker.accCircle=L.circle(d,{radius:a,fillColor:'#4285F4',fillOpacity:0.08,color:'#4285F4',opacity:0.25,weight:1,interactive:false,pane:'gpsPane'}).addTo(map);
     }else{
-      gpsTracker.marker.setLatLng(d);
       gpsTracker.accCircle.setLatLng(d).setRadius(a);
     }
     _gpsHd(d);
@@ -75,14 +73,13 @@ function _gpsOri(){
     let h=null;
     if(e.webkitCompassHeading!==undefined)h=e.webkitCompassHeading;
     else if(e.alpha!==null)h=(360-e.alpha)%360;
-    if(h!==null){gpsTracker.heading=h;if(gpsTracker.marker)_gpsHd(gpsTracker.marker.getLatLng());}
+    if(h!==null){gpsTracker.heading=h;if(gpsTracker.hdMarker)_gpsHd(gpsTracker.hdMarker.getLatLng());}
   };
   window.addEventListener('deviceorientation',gpsTracker._oh,true);
 }
 
 function stopTracking(){
   if(gpsTracker.watchId!==null){navigator.geolocation.clearWatch(gpsTracker.watchId);gpsTracker.watchId=null;}
-  if(gpsTracker.marker){map.removeLayer(gpsTracker.marker);gpsTracker.marker=null;}
   if(gpsTracker.accCircle){map.removeLayer(gpsTracker.accCircle);gpsTracker.accCircle=null;}
   if(gpsTracker.hdMarker){map.removeLayer(gpsTracker.hdMarker);gpsTracker.hdMarker=null;}
   if(gpsTracker._oh){window.removeEventListener('deviceorientation',gpsTracker._oh,true);gpsTracker._oh=null;}
@@ -91,7 +88,7 @@ function stopTracking(){
 }
 
 function locateMe(){
-  if(gpsTracker.active&&gpsTracker.lastPos){map.setView(displayLL(gpsTracker.lastPos),Math.max(map.getZoom(),15));return;}
+  if(gpsTracker.active&&gpsTracker.lastPos){map.setView(displayLL(gpsTracker.lastPos),Math.max(map.getZoom(),15));toast('已定位（精度 '+Math.round(gpsTracker.lastPos.accuracy)+'m）');return;}
   if(!navigator.geolocation){toast('浏览器不支持定位');return;}
   toast('正在获取位置…');
   navigator.geolocation.getCurrentPosition(pos=>{
@@ -105,7 +102,6 @@ function locateMe(){
 function repositionGPSMarker(){
   if(!gpsTracker.active||!gpsTracker.lastPos)return;
   const d=displayLL(gpsTracker.lastPos);
-  if(gpsTracker.marker)gpsTracker.marker.setLatLng(d);
   if(gpsTracker.accCircle)gpsTracker.accCircle.setLatLng(d);
   if(gpsTracker.hdMarker)gpsTracker.hdMarker.setLatLng(d);
 }
