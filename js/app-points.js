@@ -8,6 +8,7 @@ function isTerminal(mode,i){
 function makeIcon(mode,i,opts){
   opts=opts||{};const M0=M[mode],nm=label(mode,i),p=M0.pts[i],kind=p?p.kind:`new`;const sel=opts.sel?` sel`:``;const inactive=opts.inactive?` inactive`:``;
   if(kind===`known`){const link=(p&&p.link)?` link`:``;return L.divIcon({className:``,html:`<div class="pt-known`+sel+link+inactive+`"><svg width="22" height="19" viewBox="0 0 22 19"><polygon points="11,1.5 20.5,17.5 1.5,17.5" fill="#ff5a3c" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg><span class="known-nm">`+nm+`</span></div>`,iconSize:[60,34],iconAnchor:[30,11]});}
+  if(kind===`turn`){return L.divIcon({className:``,html:`<div class="pt-turn`+sel+inactive+`">`+nm+`</div>`,iconSize:[0,0],iconAnchor:[0,0]});}
   const term=opts.term?` term`:``,sync=(p&&p.sync)?` sync`:``,anchor=opts.anchor?` anchor`:``;
   return L.divIcon({className:``,html:`<div class="pt-label `+M0.cls+term+sync+sel+inactive+anchor+`">`+nm+`</div>`,iconSize:[0,0],iconAnchor:[0,0]});
 }
@@ -72,7 +73,17 @@ function bindMarker(mode,p){
     if(isLocked)nameInp.disabled=true;
     nameInp.onkeydown=ev=>{if(ev.key===`Enter`){ev.preventDefault();const v=nameInp.value.trim();if(v!==(p.name||lbl)){pushUndo();p.name=v||null;if(p.link)p.indepName=true;}map.closePopup();refresh();}};
     div.appendChild(nameInp);
-    const typeText=p.link?`同步自GNSS`:(p.kind===`known`?`已知点`:`待测点`);
+    if(p.kind===`turn`){
+      const infoT=document.createElement(`div`);infoT.style.cssText=`font-size:12px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px;`;infoT.textContent=`转点`;
+      if(!isLocked){const li=document.createElement(`span`);li.className=`gps-locate-icon`;li.title=`GPS采样定位`;li.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>`;li.onclick=function(ev){ev.stopPropagation();if(li.classList.contains(`sampling`))return;li.classList.add(`sampling`);map.closePopup();toast(`采样中 0/5…`);gpsMultiSample(function(r){if(!r)return;pushUndo();p.wgs={lat:r.lat,lng:r.lng};p.marker.setLatLng(displayLL(p.wgs));map.panTo(displayLL(p.wgs));refresh();toast(`已定位（精度 `+r.accuracy.toFixed(1)+`m，采样`+r.n+`次，有效`+r.used+`次）`);},function(n,t){toast(`采样中 `+n+`/`+t+`…`);});};infoT.appendChild(li);}
+      div.appendChild(infoT);
+      if(!isLocked){const db=document.createElement(`button`);db.className=`del-popup-btn`;db.textContent=`删除转点`;db.onclick=()=>{map.closePopup();pushUndo();removePoint(`lev`,p);};div.appendChild(db);}
+      L.popup({offset:[0,-8]}).setLatLng(p.marker.getLatLng()).setContent(div).openOn(map);
+      setTimeout(()=>{if(!isLocked){nameInp.focus();nameInp.select();}},100);
+      return;
+    }
+    const isLevLinked=mode===`lev`&&p.link&&or&&or.linkedRouteId;
+    const typeText=p.link?(isLevLinked?`同步自导线`:`同步自GNSS`):(p.kind===`known`?`已知点`:`待测点`);
     const infoDiv=document.createElement(`div`);infoDiv.style.cssText=`font-size:12px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px;`;infoDiv.textContent=typeText;
     if(!p.link&&!isLocked){const li=document.createElement(`span`);li.className=`gps-locate-icon`;li.title=`GPS采样定位`;li.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>`;li.onclick=function(ev){ev.stopPropagation();if(li.classList.contains(`sampling`))return;li.classList.add(`sampling`);map.closePopup();toast(`采样中 0/5…`);gpsMultiSample(function(r){if(!r)return;pushUndo();p.wgs={lat:r.lat,lng:r.lng};p.marker.setLatLng(displayLL(p.wgs));map.panTo(displayLL(p.wgs));refresh();toast(`已定位（精度 `+r.accuracy.toFixed(1)+`m，采样`+r.n+`次，有效`+r.used+`次）`);},function(n,t){toast(`采样中 `+n+`/`+t+`…`);});};infoDiv.appendChild(li);}
     div.appendChild(infoDiv);
@@ -92,7 +103,7 @@ function bindMarker(mode,p){
       spb.onclick=async()=>{map.closePopup();const r=await showConfirm(`创建`+sml,`<div class="param"><span>`+sml+`名称</span><input data-key="name" type="text" value="`+sml+(M[mode].routes.length+1)+`" style="width:140px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--text);font-size:13px;"></div><div class="param"><span>点名前缀</span><input data-key="prefix" type="text" placeholder="可选" style="width:140px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--text);font-size:13px;"></div>`,[{text:`取消`,value:`cancel`},{text:`创建`,value:`create`,cls:`go`}]);if(!r||r.action===`cancel`)return;const nm=r.inputs.name||sml+(M[mode].routes.length+1);const pfx=r.inputs.prefix||``;pushUndo();const pr=ownerRoute();const route=createRouteOf(mode,nm,pfx,pr?pr.id:null);const sp={id:++uid,kind:p.kind,name:p.name||lbl,wgs:{lat:p.wgs.lat,lng:p.wgs.lng},sync:false,link:null};sp.marker=L.marker(displayLL(sp.wgs),{draggable:true}).addTo(map);route.pts.push(sp);bindMarker(mode,sp);refresh();toast(`已创建`+sml+`「`+nm+`」`);};
       div.appendChild(spb);
     }
-    if(!isLocked){
+    if(!isLocked&&!isLevLinked){
       const db=document.createElement(`button`);db.className=`del-popup-btn`;const da=delAction(mode,p);db.textContent=da.title;db.onclick=()=>{map.closePopup();da.fn();};div.appendChild(db);
     }
     L.popup({offset:[0,-12]}).setLatLng(p.marker.getLatLng()).setContent(div).openOn(map);
@@ -155,6 +166,25 @@ function showSegPopup(mode,segIdx,ev,route){
     div.appendChild(btnKE);
   }
   L.popup({closeButton:true,minWidth:120}).setLatLng(ev.latlng).setContent(div).openOn(map);
+}
+function nextTurnName(route){
+  const used=new Set();
+  route.pts.forEach(p=>{if(p.kind===`turn`&&p.name&&p.name.startsWith(`Z`)){const n=parseInt(p.name.slice(1),10);if(!isNaN(n))used.add(n);}});
+  let n=1;while(used.has(n))n++;return`Z`+String(n).padStart(2,`0`);
+}
+function insertTurnPoint(route,segIdx,latlng){
+  if(route.locked){toast(`水准路线已锁定`);return;}
+  pushUndo();
+  const p={id:++uid,kind:`turn`,name:nextTurnName(route),wgs:trueLL(latlng),sync:false,link:null,knownEdgeAfter:false};
+  p.marker=L.marker(displayLL(p.wgs),{draggable:true}).addTo(map);
+  route.pts.splice(segIdx+1,0,p);bindMarker(`lev`,p);refresh();
+}
+function showTurnPopup(route,segIdx,ev){
+  const div=document.createElement(`div`);div.style.cssText=`display:flex;flex-direction:column;gap:6px;`;
+  const btnIns=document.createElement(`button`);btnIns.textContent=`插入转点`;btnIns.className=`btn sm`;
+  btnIns.onclick=()=>{map.closePopup();insertTurnPoint(route,segIdx,ev.latlng);};
+  div.appendChild(btnIns);
+  L.popup({closeButton:true,minWidth:100}).setLatLng(ev.latlng).setContent(div).openOn(map);
 }
 function removePoint(mode,p){map.removeLayer(p.marker);const M0=M[mode];M0.pts=M0.pts.filter(x=>x!==p);if(mode===`gnss`){M0.edges=M0.edges.filter(e=>e.a!==p&&e.b!==p);M0.triangles=M0.triangles.filter(t=>!t.pts.includes(p));if(M0.sel===p)M0.sel=null;M0.triSel=M0.triSel.filter(x=>x!==p);}refresh();}
 function toggleEdge(a,b){const g=M.gnss;const idx=g.edges.findIndex(e=>(e.a===a&&e.b===b)||(e.a===b&&e.b===a));if(idx>=0)g.edges.splice(idx,1);else g.edges.push({a,b});}

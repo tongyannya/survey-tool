@@ -121,6 +121,7 @@ button.wide{width:100%;flex:1;}
 .pt-label.term{border-color:var(--ok);box-shadow:0 0 0 2px var(--ok),0 1px 4px rgba(0,0,0,.55);}
 .pt-label.sync{box-shadow:0 0 0 2px var(--trav),0 1px 4px rgba(0,0,0,.55);}
 .pt-label.anchor{background:var(--known);color:#fff;}
+.pt-turn{display:inline-block;font-weight:600;font-size:9px;min-width:14px;height:14px;line-height:14px;text-align:center;border-radius:7px;padding:0 3px;background:#b0bec5;color:#1a1a1a;border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.5);white-space:nowrap;transform:translate(-50%,-50%);}
 .row.ke{opacity:.55;}
 .ke-tag{font-size:10px;color:var(--trav);font-weight:400;}
 .pt-label.sel{outline:3px solid #fff;}
@@ -232,6 +233,16 @@ h1 .help-dot{width:17px;height:17px;font-size:11px;}
 .route-item.locked-route .route-name::after{content:" 🔒";font-size:10px;}
 .pt-label.inactive{opacity:.35;pointer-events:none;}
 .pt-known.inactive{opacity:.35;pointer-events:none;}
+
+/* ===== Turn points panel ===== */
+.turn-toggle{display:flex;align-items:center;gap:4px;padding:2px 0 2px 22px;font-size:11px;color:var(--muted);cursor:pointer;user-select:none;}
+.turn-toggle:hover{color:var(--text);}
+.turn-toggle .even-mark{font-weight:700;} .turn-toggle .even-mark.ok{color:var(--ok);} .turn-toggle .even-mark.bad{color:var(--bad);}
+.turn-row{display:flex;align-items:center;gap:6px;padding:1px 0 1px 30px;font-size:11px;color:var(--text);}
+.turn-row .turn-nm{font-weight:600;min-width:28px;}
+.turn-row .turn-dist{color:var(--muted);font-family:Consolas,monospace;font-size:10px;}
+.turn-row .turn-dist.bad{color:var(--bad);}
+.turn-row .ic{font-size:10px;padding:1px 3px;}
 
 /* ===== Drag reorder ===== */
 .drag-handle{color:var(--muted);cursor:grab;font-size:10px;user-select:none;padding-right:2px;}

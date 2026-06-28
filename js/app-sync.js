@@ -13,6 +13,14 @@ function reconcileLinks(){
       if(match){match.link=src.id;match.kind=`known`;if(!match.indepName)match.name=src.name;match.marker.dragging.disable();used.add(src.id);break;}
     }
   }});
+  M.lev.routes.forEach(route=>{
+    if(!route.linkedRouteId)return;
+    const srcRoute=M.trav.routes.find(r=>r.id===route.linkedRouteId);
+    if(!srcRoute){route.linkedRouteId=null;route.pts.forEach(p=>{p.link=null;});return;}
+    const rm=[];
+    route.pts.forEach(p=>{if(!p.link)return;const src=allTravPts().find(tp=>tp.id===p.link);if(!src){rm.push(p);return;}p.wgs={lat:src.wgs.lat,lng:src.wgs.lng};if(!p.indepName)p.name=src.name;p.kind=src.kind;p.knownEdgeAfter=!!src.knownEdgeAfter;p.marker.setLatLng(displayLL(p.wgs));});
+    rm.forEach(p=>{map.removeLayer(p.marker);route.pts=route.pts.filter(x=>x!==p);});
+  });
 }
 function clearGhosts(){M.trav.ghosts.forEach(g=>map.removeLayer(g));M.trav.ghosts=[];}
 function buildGhosts(){

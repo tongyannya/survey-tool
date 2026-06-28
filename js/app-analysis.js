@@ -114,13 +114,13 @@ function refreshLev(){
     for(let i=0;i<pts.length-1;i++){
       const A=pts[i].marker.getLatLng(),B=pts[i+1].marker.getLatLng(),d=vincenty(pts[i].wgs,pts[i+1].wgs);
       const key=keyOf(pts[i].id,pts[i+1].id),sel=calc.on&&calcHas(key);
-      drawSeg(`lev`,A,B,{color:sel?`#ffffff`:`#b388ff`,weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[i].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`lev`,pts[i].id,pts[i+1].id):(pts[i].knownEdgeAfter?null:(ev)=>showSegPopup(`lev`,i,ev,route))):null});
+      drawSeg(`lev`,A,B,{color:sel?`#ffffff`:`#b388ff`,weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[i].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`lev`,pts[i].id,pts[i+1].id):(pts[i].knownEdgeAfter?null:(route.linkedRouteId?(ev)=>showTurnPopup(route,i,ev):(ev)=>showSegPopup(`lev`,i,ev,route)))):null});
     }
     if(route.closed&&pts.length>=3){
       const last=pts[pts.length-1],first=pts[0];
       const A=last.marker.getLatLng(),B=first.marker.getLatLng(),d=vincenty(last.wgs,first.wgs);
       const key=keyOf(last.id,first.id),sel=calc.on&&calcHas(key);
-      drawSeg(`lev`,A,B,{color:sel?`#ffffff`:`#b388ff`,weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[pts.length-1].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`lev`,last.id,first.id):(pts[pts.length-1].knownEdgeAfter?null:(ev)=>showSegPopup(`lev`,pts.length-1,ev,route))):null});
+      drawSeg(`lev`,A,B,{color:sel?`#ffffff`:`#b388ff`,weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[pts.length-1].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`lev`,last.id,first.id):(pts[pts.length-1].knownEdgeAfter?null:(route.linkedRouteId?(ev)=>showTurnPopup(route,pts.length-1,ev):(ev)=>showSegPopup(`lev`,pts.length-1,ev,route)))):null});
     }
   });
   M.lev.activeRouteId=savedId;
@@ -140,4 +140,15 @@ function refreshLev(){
   html+=`<div class="note">二等限差参考：`+(alr.closed?`环闭合差 ≤ ±4√L = ±`+(4*Math.sqrt(Lkm)).toFixed(1)+` mm`:`往返不符值 ≤ ±4√L = ±`+(4*Math.sqrt(Lkm)).toFixed(1)+` mm`)+`（L=`+Lkm.toFixed(2)+` km）；视线长 ≤ `+M.lev.maxSight+` m。</div>`;
   box.innerHTML=html;wireLev();
 }
-function wireLev(){const b=document.getElementById(`copyFromTrav`);if(b)b.onclick=async()=>{if(!M.trav.routes.length){toast(`没有导线可以复制`);return;}if(M.lev.routes.length){const r=await showConfirm(`覆盖水准路线`,`<p>当前已有 `+M.lev.routes.length+` 条水准路线，复制将全部替换。确定继续？</p>`,[{text:`取消`,value:`cancel`},{text:`确定复制`,value:`ok`,cls:`go`}]);if(!r||r.action===`cancel`)return;}pushUndo();M.lev.routes.forEach(r=>{r.pts.forEach(p=>map.removeLayer(p.marker));});M.lev.routes=[];const idMap={};M.trav.routes.forEach(tr=>{const lr={id:++uid,name:tr.name,prefix:tr.prefix||``,closed:!!tr.closed,hidden:!!tr.hidden,locked:false,expanded:!!tr.expanded,parentId:null,pts:[]};idMap[tr.id]=lr.id;M.lev.routes.push(lr);tr.pts.forEach(sp=>{const p={id:++uid,kind:sp.kind,name:sp.name,wgs:{lat:sp.wgs.lat,lng:sp.wgs.lng},sync:false,link:null,knownEdgeAfter:!!sp.knownEdgeAfter};p.marker=L.marker(displayLL(p.wgs),{draggable:true}).addTo(map);lr.pts.push(p);bindMarker(`lev`,p);});});M.lev.routes.forEach((lr,i)=>{const tr=M.trav.routes[i];if(tr.parentId&&idMap[tr.parentId])lr.parentId=idMap[tr.parentId];});M.lev.activeRouteId=M.lev.routes.length?M.lev.routes[0].id:null;refresh();toast(`已从导线复制 `+M.lev.routes.length+` 条路线到水准`);};}
+let _linkLev=true;
+function wireLev(){
+  const b=document.getElementById(`copyFromTrav`);if(!b)return;
+  const wrap=b.parentElement||b.parentNode;
+  if(!document.getElementById(`linkLevCb`)){
+    const lbl=document.createElement(`label`);lbl.style.cssText=`display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);margin-top:2px;margin-bottom:4px;cursor:pointer;`;
+    const cb=document.createElement(`input`);cb.type=`checkbox`;cb.id=`linkLevCb`;cb.checked=_linkLev;cb.onchange=()=>{_linkLev=cb.checked;};
+    lbl.appendChild(cb);lbl.appendChild(document.createTextNode(`联动（导线点移动/删除时同步）`));
+    if(wrap&&b.nextSibling)wrap.insertBefore(lbl,b.nextSibling);else if(wrap)wrap.appendChild(lbl);
+  }
+  b.onclick=async()=>{if(!M.trav.routes.length){toast(`没有导线可以复制`);return;}if(M.lev.routes.length){const r=await showConfirm(`覆盖水准路线`,`<p>当前已有 `+M.lev.routes.length+` 条水准路线，复制将全部替换。确定继续？</p>`,[{text:`取消`,value:`cancel`},{text:`确定复制`,value:`ok`,cls:`go`}]);if(!r||r.action===`cancel`)return;}const linked=_linkLev;pushUndo();M.lev.routes.forEach(r=>{r.pts.forEach(p=>map.removeLayer(p.marker));});M.lev.routes=[];const idMap={};M.trav.routes.forEach(tr=>{const lr={id:++uid,name:tr.name,prefix:tr.prefix||``,closed:!!tr.closed,hidden:!!tr.hidden,locked:false,expanded:!!tr.expanded,parentId:null,linkedRouteId:linked?tr.id:null,pts:[]};idMap[tr.id]=lr.id;M.lev.routes.push(lr);tr.pts.forEach(sp=>{const p={id:++uid,kind:sp.kind,name:sp.name,wgs:{lat:sp.wgs.lat,lng:sp.wgs.lng},sync:false,link:linked?sp.id:null,knownEdgeAfter:!!sp.knownEdgeAfter};p.marker=L.marker(displayLL(p.wgs),{draggable:!linked}).addTo(map);lr.pts.push(p);bindMarker(`lev`,p);});});M.lev.routes.forEach((lr,i)=>{const tr=M.trav.routes[i];if(tr.parentId&&idMap[tr.parentId])lr.parentId=idMap[tr.parentId];});M.lev.activeRouteId=M.lev.routes.length?M.lev.routes[0].id:null;refresh();toast(`已从导线复制 `+M.lev.routes.length+` 条路线到水准`+(linked?`（联动）`:``));};
+}

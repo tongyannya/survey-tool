@@ -42,7 +42,7 @@ function serialize(){
   const serPt=p=>({id:p.id,kind:p.kind,name:p.name,wgs:{lat:p.wgs.lat,lng:p.wgs.lng},sync:!!p.sync,link:p.link||null,indepName:!!p.indepName,fromImpGhost:!!p.fromImpGhost,knownEdgeAfter:!!p.knownEdgeAfter});
   const serGh=g=>({id:g.id,name:g.name,wgs:{lat:g.wgs.lat,lng:g.wgs.lng}});
   sp.modes.gnss={points:M.gnss.pts.map(serPt),impGhosts:M.gnss.impGhosts.map(serGh)};
-  sp.modes.lev={routes:M.lev.routes.map(r=>({id:r.id,name:r.name,prefix:r.prefix||``,closed:!!r.closed,hidden:!!r.hidden,locked:!!r.locked,expanded:!!r.expanded,parentId:r.parentId||null,points:r.pts.map(serPt)})),activeRouteId:M.lev.activeRouteId,impGhosts:M.lev.impGhosts.map(serGh)};
+  sp.modes.lev={routes:M.lev.routes.map(r=>({id:r.id,name:r.name,prefix:r.prefix||``,closed:!!r.closed,hidden:!!r.hidden,locked:!!r.locked,expanded:!!r.expanded,parentId:r.parentId||null,linkedRouteId:r.linkedRouteId||null,points:r.pts.map(serPt)})),activeRouteId:M.lev.activeRouteId,impGhosts:M.lev.impGhosts.map(serGh)};
   sp.modes.trav={routes:M.trav.routes.map(r=>({id:r.id,name:r.name,prefix:r.prefix||``,closed:!!r.closed,hidden:!!r.hidden,locked:!!r.locked,expanded:!!r.expanded,parentId:r.parentId||null,points:r.pts.map(serPt)})),activeRouteId:M.trav.activeRouteId,impGhosts:M.trav.impGhosts.map(serGh)};
   sp.modes.gnss.edges=M.gnss.edges.map(e=>[e.a.id,e.b.id]);
   sp.modes.gnss.triangles=M.gnss.triangles.map(t=>({pts:t.pts.map(p=>p.id),note:t.note||``}));
@@ -85,9 +85,9 @@ function restore(sp){
   const ld=sp.modes.lev;
   if(ld.routes){
     ld.routes.forEach(rd=>{
-      const route={id:rd.id,name:rd.name,prefix:rd.prefix||``,closed:!!rd.closed,hidden:!!rd.hidden,locked:!!rd.locked,expanded:rd.expanded!==false,parentId:rd.parentId||null,pts:[]};
+      const route={id:rd.id,name:rd.name,prefix:rd.prefix||``,closed:!!rd.closed,hidden:!!rd.hidden,locked:!!rd.locked,expanded:rd.expanded!==false,parentId:rd.parentId||null,linkedRouteId:rd.linkedRouteId||null,pts:[]};
       M.lev.routes.push(route);M.lev.activeRouteId=route.id;
-      rd.points.forEach(d=>{const p={id:d.id,kind:d.kind,name:d.name,wgs:{lat:d.wgs.lat,lng:d.wgs.lng},sync:!!d.sync,link:d.link||null,indepName:!!d.indepName,fromImpGhost:!!d.fromImpGhost,knownEdgeAfter:!!d.knownEdgeAfter};p.marker=L.marker(displayLL(p.wgs),{draggable:!route.locked}).addTo(map);route.pts.push(p);bindMarker(`lev`,p);});
+      rd.points.forEach(d=>{const p={id:d.id,kind:d.kind,name:d.name,wgs:{lat:d.wgs.lat,lng:d.wgs.lng},sync:!!d.sync,link:d.link||null,indepName:!!d.indepName,fromImpGhost:!!d.fromImpGhost,knownEdgeAfter:!!d.knownEdgeAfter};p.marker=L.marker(displayLL(p.wgs),{draggable:!p.link&&!route.locked}).addTo(map);route.pts.push(p);bindMarker(`lev`,p);});
     });
     M.lev.activeRouteId=ld.activeRouteId||null;
     if(M.lev.activeRouteId&&!M.lev.routes.find(r=>r.id===M.lev.activeRouteId))M.lev.activeRouteId=M.lev.routes.length?M.lev.routes[0].id:null;
