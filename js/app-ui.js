@@ -46,16 +46,28 @@ document.querySelectorAll('.tool-name').forEach(n=>{n.onclick=e=>{if(e.target.cl
   document.getElementById('fabTools').addEventListener('click',()=>{if(!moved)toggleFloat('tools');});
 })();
 
-/* ===== 缩放到全部点位 ===== */
-function zoomToFit(){
-  const pts=[];
-  if(cur===`gnss`){M.gnss.pts.forEach(p=>pts.push(displayLL(p.wgs)));M.gnss.impGhosts.forEach(g=>pts.push(displayLL(g.wgs)));}
-  else{M[cur].routes.forEach(r=>{if(!r.hidden)r.pts.forEach(p=>pts.push(displayLL(p.wgs)));});M[cur].impGhosts.forEach(g=>pts.push(displayLL(g.wgs)));if(M[cur].ghosts)M[cur].ghosts.forEach(g=>{if(g._wgs)pts.push(displayLL(g._wgs));});}
-  if(!pts.length){toast(`当前模式没有点位`);return;}
+/* ===== 缩放到点位 ===== */
+function _fitPts(pts,emptyMsg){
+  if(!pts.length){toast(emptyMsg||`没有点位`);return;}
   if(pts.length===1){map.setView(pts[0],16);return;}
   map.fitBounds(L.latLngBounds(pts),{padding:[40,40]});
 }
-document.getElementById(`zoomFitBtn`).onclick=zoomToFit;
+function zoomToFit(){
+  const pts=[];
+  if(cur===`gnss`){M.gnss.pts.forEach(p=>pts.push(displayLL(p.wgs)));}
+  else{M[cur].routes.forEach(r=>{if(!r.hidden)r.pts.forEach(p=>pts.push(displayLL(p.wgs)));});}
+  _fitPts(pts,`当前模式没有点位`);
+}
+function zoomToFitAll(){
+  const pts=[];
+  M.gnss.pts.forEach(p=>pts.push(displayLL(p.wgs)));
+  [`trav`,`lev`].forEach(k=>M[k].routes.forEach(r=>{if(!r.hidden)r.pts.forEach(p=>pts.push(displayLL(p.wgs)));}));
+  _fitPts(pts,`没有任何点位`);
+}
+function zoomToRoute(route){
+  _fitPts(route.pts.map(p=>displayLL(p.wgs)),`该路线没有点位`);
+}
+document.getElementById(`zoomAllBtn`).onclick=zoomToFitAll;
 document.querySelectorAll(`.zoom-fit`).forEach(el=>{el.onclick=zoomToFit;});
 
 /* ===== 模式切换与参数 ===== */
@@ -96,7 +108,7 @@ function modeRows(){const pts=m().pts;const rows=[[`点名`,`类型`,`纬度B`,`
 document.getElementById(`copyBtn`).onclick=()=>{const pts=m().pts;if(!pts.length){toast(`当前模式没有点位`);return;}const txt=modeRows().map(r=>r.join(`\t`)).join(`\n`);if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(()=>toast(`已复制 `+pts.length+` 点`)).catch(()=>fallbackCopy(txt));else fallbackCopy(txt);};
 document.getElementById(`csvBtn`).onclick=()=>{const pts=m().pts;if(!pts.length){toast(`当前模式没有点位`);return;}const csv=`﻿`+modeRows().map(r=>r.map(c=>/[",\n]/.test(c)?`"`+c.replace(/"/g,`""`)+`"`:c).join(`,`)).join(`\r\n`);download(`控制点_`+{gnss:`GNSS`,trav:`导线`,lev:`水准`}[cur]+`.csv`,csv,`text/csv;charset=utf-8`);toast(`已导出 CSV`);};
 function fallbackCopy(txt){const ta=document.createElement(`textarea`);ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand(`copy`);toast(`已复制`);}catch(e){toast(`复制失败`);}document.body.removeChild(ta);}
-document.getElementById(`resetBtn`).onclick=()=>{pushUndo();if(cur===`trav`||cur===`lev`){M[cur].routes.forEach(r=>{r.pts.forEach(p=>map.removeLayer(p.marker));});M[cur].impGhosts.forEach(g=>map.removeLayer(g.marker));M[cur].impGhosts=[];M[cur].routes=[];M[cur].activeRouteId=null;}else{m().pts.forEach(p=>map.removeLayer(p.marker));m().pts=[];m().impGhosts.forEach(g=>map.removeLayer(g.marker));m().impGhosts=[];if(cur===`gnss`){M.gnss.edges=[];M.gnss.triangles=[];M.gnss.sel=null;M.gnss.triSel=[];}}selectedPtIds.clear();refresh();toast(`已清空当前模式`);};
+document.getElementById(`clearModeBtn`).onclick=()=>{pushUndo();if(cur===`trav`||cur===`lev`){M[cur].routes.forEach(r=>{r.pts.forEach(p=>map.removeLayer(p.marker));});M[cur].impGhosts.forEach(g=>map.removeLayer(g.marker));M[cur].impGhosts=[];M[cur].routes=[];M[cur].activeRouteId=null;}else{m().pts.forEach(p=>map.removeLayer(p.marker));m().pts=[];m().impGhosts.forEach(g=>map.removeLayer(g.marker));m().impGhosts=[];if(cur===`gnss`){M.gnss.edges=[];M.gnss.triangles=[];M.gnss.sel=null;M.gnss.triSel=[];}}selectedPtIds.clear();refresh();toast(`已清空当前模式`);};
 function updateDatumNote(){document.getElementById(`datumNote`).textContent=currentBase===`sat`?`高德卫星底图(GCJ-02)已自动换算为真实 WGS-84 显示/导出；距离按 WGS-84 椭球 Vincenty 计算。`:`OSM 街道底图为 WGS-84，无偏移。`;}
 
 /* ===== 方案管理 ===== */

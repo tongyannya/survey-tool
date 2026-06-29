@@ -13,6 +13,7 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;white-space:nowrap
 header h1::before{content:"◇ ";color:var(--accent);}
 .toolbar{display:flex;gap:4px;}
 .toolbar button{padding:4px 8px;font-size:12px;}
+.tb-icon{display:inline-flex;align-items:center;justify-content:center;padding:4px 6px!important;}
 .tabs{display:flex;gap:4px;margin-left:auto;}
 .tab{padding:5px 12px;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--muted);font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit;}
 .tab:hover{color:var(--text);}
@@ -233,6 +234,7 @@ h1 .help-dot{width:17px;height:17px;font-size:11px;}
 .route-header:hover{background:rgba(90,176,255,0.06);}
 .route-arrow{font-size:10px;color:var(--muted);width:1em;flex-shrink:0;}
 .route-name{flex:1;font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.route-zoom{display:inline-flex;align-items:center;cursor:pointer;opacity:.45;padding:2px;flex-shrink:0;}.route-zoom:hover{opacity:1;color:var(--accent);}
 .route-item.active .route-name{color:var(--trav);}
 .route-closed-wrap{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:3px;cursor:pointer;flex-shrink:0;}
 .route-closed-wrap input{margin:0;cursor:pointer;}

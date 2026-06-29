@@ -100,6 +100,9 @@ function renderRouteList(box,mode,bs){
       inp.onkeydown=ev=>{if(ev.key===`Enter`){ev.preventDefault();inp.blur();}else if(ev.key===`Escape`)refresh();};inp.onblur=commit;return;}
       nmTimer=setTimeout(()=>{nmTimer=null;pushUndo();setActiveRouteIdOf(mode,isActive?null:route.id);refresh();},280);};
     hdr.appendChild(nm);
+    const zoomBtn=document.createElement(`span`);zoomBtn.className=`route-zoom`;zoomBtn.title=`缩放到此路线`;zoomBtn.innerHTML=`<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4"/><path d="M11 1h4v4"/><path d="M15 11v4h-4"/><path d="M5 15H1v-4"/></svg>`;
+    zoomBtn.onclick=e=>{e.stopPropagation();zoomToRoute(route);};
+    hdr.appendChild(zoomBtn);
     const closedLabel=document.createElement(`label`);closedLabel.className=`route-closed-wrap`;closedLabel.onclick=e=>e.stopPropagation();
     const closedCb=document.createElement(`input`);closedCb.type=`checkbox`;closedCb.checked=!!route.closed;
     closedCb.onchange=()=>{pushUndo();route.closed=closedCb.checked;refresh();};

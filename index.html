@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>控制测量设计器 · GNSS网 / 导线 / 水准</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="style.css?v=20260629e">
+<link rel="stylesheet" href="style.css?v=20260629f">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -13,11 +13,10 @@
 <header>
   <h1>控制测量设计器<i class="help-dot" data-help="overview" title="使用说明">?</i></h1>
   <div class="toolbar">
-    <button id="undoBtn" title="撤销 (Ctrl+Z)">↶ 撤销</button>
-    <button id="redoBtn" title="重做 (Ctrl+Shift+Z)">↷ 重做</button>
-    <button id="zoomFitBtn" title="缩放到全部点位"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4"/><path d="M11 1h4v4"/><path d="M15 11v4h-4"/><path d="M5 15H1v-4"/></svg> 缩放</button>
-    <button id="resetBtn" title="清空当前模式">清空当前模式</button>
-    <button id="resetAllBtn" title="清空全部模式">⟲ 全部重置</button>
+    <button id="undoBtn" class="tb-icon" title="撤销"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2.1-7L1 10"/></svg></button>
+    <button id="redoBtn" class="tb-icon" title="恢复"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.1-7L23 10"/></svg></button>
+    <button id="resetAllBtn" class="tb-icon" title="清空"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10"/><path d="M20.5 15a9 9 0 0 1-14.9 3.4L1 14"/></svg></button>
+    <button id="zoomAllBtn" class="tb-icon" title="缩放"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4"/><path d="M11 1h4v4"/><path d="M15 11v4h-4"/><path d="M5 15H1v-4"/></svg></button>
   </div>
   <div class="tabs">
     <button class="tab active" data-m="gnss">GNSS 控制网</button>
@@ -69,12 +68,12 @@
 
   <div id="panelArea">
     <div id="panelDesign" class="panel">
-      <div class="panel-header"><span><span id="modeTitleText">GNSS 控制网 · 三角网</span><i class="help-dot" data-help="param">?</i></span><span class="ph-actions"><span class="zoom-fit" title="缩放到全部点位"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4"/><path d="M11 1h4v4"/><path d="M15 11v4h-4"/><path d="M5 15H1v-4"/></svg></span><span class="panel-close" data-panel="design">×</span></span></div>
+      <div class="panel-header"><span><span id="modeTitleText">GNSS 控制网 · 三角网</span><i class="help-dot" data-help="param">?</i></span><span class="panel-close" data-panel="design">×</span></div>
       <div class="panel-body"><div id="paramBox"></div></div>
     </div>
     <div class="panel-resizer" id="resizerDp"></div>
     <div id="panelPoints" class="panel">
-      <div class="panel-header"><span><span id="ptTitleText">控制点</span><i class="help-dot" data-help="points">?</i></span><span class="ph-actions"><span class="zoom-fit" title="缩放到全部点位"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4"/><path d="M11 1h4v4"/><path d="M15 11v4h-4"/><path d="M5 15H1v-4"/></svg></span><span class="panel-close" data-panel="points">×</span></span></div>
+      <div class="panel-header"><span><span id="ptTitleText">控制点</span><i class="help-dot" data-help="points">?</i></span><span class="ph-actions"><span class="zoom-fit" title="缩放到当前模式点位"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4"/><path d="M11 1h4v4"/><path d="M15 11v4h-4"/><path d="M5 15H1v-4"/></svg></span><span id="clearModeBtn" class="zoom-fit" title="清空当前模式"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10"/><path d="M20.5 15a9 9 0 0 1-14.9 3.4L1 14"/></svg></span><span class="panel-close" data-panel="points">×</span></span></div>
       <div class="panel-body">
         <div id="ptList"></div>
         <div id="batchSection">
@@ -88,7 +87,7 @@
     </div>
     <div class="panel-resizer" id="resizerPa"></div>
     <div id="panelAnalysis" class="panel">
-      <div class="panel-header"><span>设计分析<i class="help-dot" data-help="analysis">?</i></span><span class="ph-actions"><span class="zoom-fit" title="缩放到全部点位"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4"/><path d="M11 1h4v4"/><path d="M15 11v4h-4"/><path d="M5 15H1v-4"/></svg></span><span class="panel-close" data-panel="analysis">×</span></span></div>
+      <div class="panel-header"><span>设计分析<i class="help-dot" data-help="analysis">?</i></span><span class="panel-close" data-panel="analysis">×</span></div>
       <div class="panel-body"><div id="analysis"><div class="note">布点后自动计算。</div></div></div>
     </div>
   </div>
@@ -136,17 +135,17 @@
   <div class="modal-actions"><button id="impCancel">取消</button><button id="impGoAll">导入到所有模式</button><button id="impGo" class="go">导入到当前模式</button></div>
 </div></div>
 
-<script src="js/coords.js?v=20260629e"></script>
-<script src="js/app-state.js?v=20260629e"></script>
-<script src="js/app-map.js?v=20260629e"></script>
-<script src="js/app-points.js?v=20260629e"></script>
-<script src="js/app-render.js?v=20260629e"></script>
-<script src="js/app-triangulation.js?v=20260629e"></script>
-<script src="js/app-sync.js?v=20260629e"></script>
-<script src="js/app-analysis.js?v=20260629e"></script>
-<script src="js/app-import.js?v=20260629e"></script>
-<script src="js/app-gps.js?v=20260629e"></script>
-<script src="js/help-text.js?v=20260629e"></script>
-<script src="js/app-ui.js?v=20260629e"></script>
+<script src="js/coords.js?v=20260629f"></script>
+<script src="js/app-state.js?v=20260629f"></script>
+<script src="js/app-map.js?v=20260629f"></script>
+<script src="js/app-points.js?v=20260629f"></script>
+<script src="js/app-render.js?v=20260629f"></script>
+<script src="js/app-triangulation.js?v=20260629f"></script>
+<script src="js/app-sync.js?v=20260629f"></script>
+<script src="js/app-analysis.js?v=20260629f"></script>
+<script src="js/app-import.js?v=20260629f"></script>
+<script src="js/app-gps.js?v=20260629f"></script>
+<script src="js/help-text.js?v=20260629f"></script>
+<script src="js/app-ui.js?v=20260629f"></script>
 </body>
 </html>
