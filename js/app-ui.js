@@ -14,10 +14,12 @@ document.querySelectorAll('.panel-close').forEach(b=>{b.onclick=()=>togglePanel(
 
 /* ===== 浮动面板 ===== */
 function toggleFloat(name){floatOpen=floatOpen===name?null:name;document.getElementById('schemeFloat').classList.toggle('open',floatOpen==='scheme');document.getElementById('toolsFloat').classList.toggle('open',floatOpen==='tools');}
-document.querySelectorAll('.float-close').forEach(b=>{b.onclick=()=>{floatOpen=null;document.querySelectorAll('.float-popup').forEach(p=>p.classList.remove('open'));};});
+document.querySelectorAll('.float-close').forEach(b=>{b.onclick=()=>{floatOpen=null;document.querySelectorAll('.float-popup').forEach(p=>p.classList.remove('open'));hideHelp();};});
 document.addEventListener(`mousedown`,e=>{
-  if(floatOpen===`scheme`&&!e.target.closest(`#schemeFloat,#fabContainer`)){floatOpen=null;document.getElementById(`schemeFloat`).classList.remove(`open`);}
-  if(!e.target.closest(`.leaflet-popup,.leaflet-marker-icon,.leaflet-div-icon`)){map.closePopup();}
+  let _dismissed=false;
+  if(floatOpen===`scheme`&&!e.target.closest(`#schemeFloat,#fabContainer`)){floatOpen=null;document.getElementById(`schemeFloat`).classList.remove(`open`);hideHelp();_dismissed=true;}
+  if(!e.target.closest(`.leaflet-popup,.leaflet-marker-icon,.leaflet-div-icon`)){if(map._popup)_dismissed=true;map.closePopup();}
+  if(_dismissed){_popupJustClosed=true;setTimeout(()=>{_popupJustClosed=false;},0);}
 });
 
 /* ===== 工具手风琴 ===== */
@@ -43,6 +45,18 @@ document.querySelectorAll('.tool-name').forEach(n=>{n.onclick=e=>{if(e.target.cl
   document.getElementById('fabScheme').addEventListener('click',()=>{if(!moved)toggleFloat('scheme');});
   document.getElementById('fabTools').addEventListener('click',()=>{if(!moved)toggleFloat('tools');});
 })();
+
+/* ===== 缩放到全部点位 ===== */
+function zoomToFit(){
+  const pts=[];
+  if(cur===`gnss`){M.gnss.pts.forEach(p=>pts.push(displayLL(p.wgs)));M.gnss.impGhosts.forEach(g=>pts.push(displayLL(g.wgs)));}
+  else{M[cur].routes.forEach(r=>{if(!r.hidden)r.pts.forEach(p=>pts.push(displayLL(p.wgs)));});M[cur].impGhosts.forEach(g=>pts.push(displayLL(g.wgs)));if(M[cur].ghosts)M[cur].ghosts.forEach(g=>{if(g._wgs)pts.push(displayLL(g._wgs));});}
+  if(!pts.length){toast(`当前模式没有点位`);return;}
+  if(pts.length===1){map.setView(pts[0],16);return;}
+  map.fitBounds(L.latLngBounds(pts),{padding:[40,40]});
+}
+document.getElementById(`zoomFitBtn`).onclick=zoomToFit;
+document.querySelectorAll(`.zoom-fit`).forEach(el=>{el.onclick=zoomToFit;});
 
 /* ===== 模式切换与参数 ===== */
 function setTabUI(){document.querySelectorAll(`.tab`).forEach(t=>t.classList.toggle(`active`,t.dataset.m===cur));}
