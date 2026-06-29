@@ -1,4 +1,7 @@
 /* ===== 状态 ===== */
+const SVG_OK='<svg class="mk-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5.5" stroke-width="1.2" opacity=".35"/><path d="M4.5 7l1.8 2 3.2-3.5" stroke-width="1.6"/></svg>';
+const SVG_FAIL='<svg class="mk-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="7" cy="7" r="5.5" stroke-width="1.2" opacity=".35"/><path d="M5 5l4 4M9 5l-4 4" stroke-width="1.6"/></svg>';
+const SVG_WARN_ICON='<svg class="mk-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1.5L13 12.5H1Z" stroke-width="1.2"/><line x1="7" y1="5.5" x2="7" y2="8.5" stroke-width="1.5"/><circle cx="7" cy="10.5" r=".5" fill="currentColor" stroke="none"/></svg>';
 let uid=0;
 const M={
   gnss:{pts:[],edges:[],triangles:[],lines:[],triLayers:[],prefix:`A`,cls:`gnss`,sub:`point`,sel:null,triSel:[],minEdge:500,impGhosts:[]},

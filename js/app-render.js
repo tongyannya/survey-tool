@@ -142,13 +142,17 @@ function renderRouteList(box,mode,bs){
           const expanded=_turnExpanded.has(p.id);
           const stationCount=turns.length+1;
           const isEven=stationCount%2===0;
+          const maxTurnDist=2*M.lev.maxSight;
+          const turnWarns=[];
+          if(!isEven)turnWarns.push(`测站数 `+stationCount+`（奇数，应为偶数）`);
+          for(let j=0;j<turns.length;j++){const prev=j===0?p:turns[j-1].pt;if(vincenty(prev.wgs,turns[j].pt.wgs)>maxTurnDist){turnWarns.push(`存在超过 `+maxTurnDist+` m 的转点间距`);break;}}
+          if(!turnWarns.some(w=>w.includes(`间距`))){const nextCtrl=ti<route.pts.length?route.pts[ti]:null;if(nextCtrl&&vincenty(turns[turns.length-1].pt.wgs,nextCtrl.wgs)>maxTurnDist)turnWarns.push(`存在超过 `+maxTurnDist+` m 的转点间距`);}
           const toggleRow=document.createElement(`div`);toggleRow.className=`turn-toggle`;
           const arrowSpan=document.createElement(`span`);arrowSpan.textContent=expanded?`▼`:`▶`;arrowSpan.style.cssText=`cursor:pointer;margin-right:4px;font-size:10px;`;
           toggleRow.appendChild(arrowSpan);
           const infoSpan=document.createElement(`span`);infoSpan.textContent=turns.length+` 个转点`;infoSpan.style.cssText=`margin-right:6px;font-size:12px;`;
           toggleRow.appendChild(infoSpan);
-          const mark=document.createElement(`span`);mark.className=`even-mark `+(isEven?`ok`:`bad`);mark.textContent=isEven?`✓`:`✗`;mark.title=`测站数 `+stationCount+`（`+(isEven?`偶数`:`奇数`)+`）`;
-          toggleRow.appendChild(mark);
+          if(turnWarns.length){const warn=document.createElement(`span`);warn.innerHTML=SVG_WARN_ICON.replace(`mk-icon`,`turn-warn-icon`);warn.title=turnWarns.join(`；`);toggleRow.appendChild(warn);}
           toggleRow.onclick=e=>{e.stopPropagation();if(_turnExpanded.has(p.id))_turnExpanded.delete(p.id);else _turnExpanded.add(p.id);refresh();};
           body.appendChild(toggleRow);
           if(expanded){

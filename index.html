@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>控制测量设计器 · GNSS网 / 导线 / 水准</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20260629d">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -31,7 +31,7 @@
     <div class="map-float map-search">
       <div class="search-box"><input id="searchInput" type="text" placeholder="输入地名，回车搜索"><button id="searchBtn">搜索</button></div>
       <div id="searchResults" class="search-results"></div>
-      <div class="quick-btns" id="quickBtns"><button id="btnLocate" class="minor-btn gps-locate-btn" title="定位到我"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg></button><label class="gps-track-toggle" title="位置追踪"><input type="checkbox" id="gpsTrackToggle"><span class="gps-track-slider"></span></label><button id="btnAddBm" class="minor-btn" title="保存当前位置">+</button></div>
+      <div class="quick-btns" id="quickBtns"><button id="btnLocate" class="minor-btn gps-locate-btn" title="定位到我"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg></button><label class="gps-track-toggle" title="位置追踪"><input type="checkbox" id="gpsTrackToggle"><span class="gps-track-slider"></span></label><button id="btnAddBm" class="minor-btn" title="保存当前位置">+</button><i class="help-dot" data-help="locate" title="搜索与定位说明">?</i></div>
     </div>
 
     <div class="map-float map-base">
@@ -45,7 +45,7 @@
         <div class="search-box" style="margin-bottom:8px"><input id="schemeName" type="text" placeholder="方案名，如：方案A"><button id="schemeSave">保存</button></div>
         <div id="schemeList"></div>
         <div class="tool-item"><div class="tool-name">本地导入/导出方案</div><div class="tool-body"><div class="btn-row" style="margin-top:0"><button id="schemeExport" class="wide">导出方案到本地</button><button id="schemeImport" class="wide">从本地导入</button></div></div></div>
-        <div class="tool-item"><div class="tool-name">导出当前点坐标</div><div class="tool-body"><div class="btn-row" style="margin-top:0"><button id="copyBtn" class="wide">复制坐标</button><button id="csvBtn" class="wide">导出为CSV</button></div></div></div>
+        <div class="tool-item"><div class="tool-name">导出当前点坐标<i class="help-dot" data-help="export">?</i></div><div class="tool-body"><div class="btn-row" style="margin-top:0"><button id="copyBtn" class="wide">复制坐标</button><button id="csvBtn" class="wide">导出为CSV</button></div></div></div>
         <input id="schemeFile" type="file" accept=".json" style="display:none">
         <div class="note" id="datumNote"></div>
       </div>
@@ -53,7 +53,7 @@
         <div class="float-popup-header"><span>工具</span><span class="float-close" data-close="tools">×</span></div>
         <div class="tool-item"><div class="tool-name">边长累加器<i class="help-dot" data-help="calc">?</i></div><div class="tool-body"><div class="btn-row" style="margin-top:0"><button id="calcToggle" class="wide">开启累加器</button><button id="calcClear" class="wide">清空所选</button></div><div id="calcBox" class="note">关闭状态。开启后点击地图上的边/导线段即可累加长度。</div></div></div>
         <div class="tool-item"><div class="tool-name">平差解算（开发中）</div><div class="tool-body"><div class="note" style="margin-top:0">内业数据导入 → 最小二乘平差 → 结果导出</div></div></div>
-        <div class="tool-item"><div class="tool-name">图记/标注</div><div class="tool-body"><div class="btn-row" style="margin-top:0"><button id="noteToggle" class="wide">添加图记</button><button id="noteClear" class="wide">清空全部图记</button></div><div id="noteBox" class="note">点击「添加图记」后在地图上点击放置标注。长按或右键图记可编辑/删除。</div></div></div>
+        <div class="tool-item"><div class="tool-name">图记/标注<i class="help-dot" data-help="notes">?</i></div><div class="tool-body"><div class="btn-row" style="margin-top:0"><button id="noteToggle" class="wide">添加图记</button><button id="noteClear" class="wide">清空全部图记</button></div><div id="noteBox" class="note">点击「添加图记」后在地图上点击放置标注。长按或右键图记可编辑/删除。</div></div></div>
       </div>
       <div class="fab-btns">
         <div class="fab" id="fabScheme" title="方案管理 / 导出">
@@ -78,9 +78,9 @@
         <div id="ptList"></div>
         <div id="batchSection">
         <div class="batch-select-row"><button id="selKnown">选全部已知</button><button id="selNew">选全部待测</button><button id="selNone">取消选择</button><span id="selCount"></span></div>
-        <div class="batch-row"><input id="batchPrefix" type="text" placeholder="前缀"><input id="batchStart" type="text" inputmode="numeric" value="1" placeholder="起始编号"><button id="batchApply">编号</button></div>
+        <div class="batch-row"><input id="batchPrefix" type="text" placeholder="前缀"><input id="batchStart" type="text" inputmode="numeric" value="1" placeholder="起始编号"><button id="batchApply">编号</button><i class="help-dot" data-help="batch" title="批量编号说明">?</i></div>
         </div>
-        <div class="btn-row" style="margin-top:10px"><button id="impBtn" class="wide">导入已知点（CSV / TXT / Excel）</button></div>
+        <div class="btn-row" style="margin-top:10px"><button id="impBtn" class="wide">导入已知点（CSV / TXT / Excel）</button><i class="help-dot" data-help="import" title="导入说明">?</i></div>
         <input id="fileIn" type="file" accept=".csv,.txt,.xlsx,.xls" style="display:none">
         <div class="legend"><span><i class="lg-tri"></i>已知点</span><span><i class="lg-tri g"></i>可用控制点</span><span><i class="lg-cir"></i>待测点</span></div>
       </div>
@@ -135,16 +135,17 @@
   <div class="modal-actions"><button id="impCancel">取消</button><button id="impGoAll">导入到所有模式</button><button id="impGo" class="go">导入到当前模式</button></div>
 </div></div>
 
-<script src="js/coords.js?v=20260629a"></script>
-<script src="js/app-state.js?v=20260629a"></script>
-<script src="js/app-map.js?v=20260629a"></script>
-<script src="js/app-points.js?v=20260629a"></script>
-<script src="js/app-render.js?v=20260629a"></script>
-<script src="js/app-triangulation.js?v=20260629a"></script>
-<script src="js/app-sync.js?v=20260629a"></script>
-<script src="js/app-analysis.js?v=20260629a"></script>
-<script src="js/app-import.js?v=20260629a"></script>
-<script src="js/app-gps.js?v=20260629a"></script>
-<script src="js/app-ui.js?v=20260629a"></script>
+<script src="js/coords.js?v=20260629c"></script>
+<script src="js/app-state.js?v=20260629c"></script>
+<script src="js/app-map.js?v=20260629c"></script>
+<script src="js/app-points.js?v=20260629c"></script>
+<script src="js/app-render.js?v=20260629c"></script>
+<script src="js/app-triangulation.js?v=20260629c"></script>
+<script src="js/app-sync.js?v=20260629c"></script>
+<script src="js/app-analysis.js?v=20260629c"></script>
+<script src="js/app-import.js?v=20260629c"></script>
+<script src="js/app-gps.js?v=20260629c"></script>
+<script src="js/help-text.js?v=20260629c"></script>
+<script src="js/app-ui.js?v=20260629c"></script>
 </body>
 </html>

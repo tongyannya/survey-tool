@@ -95,20 +95,9 @@ document.getElementById(`schemeExport`).onclick=()=>{download(`控制网方案_`
 document.getElementById(`schemeImport`).onclick=()=>document.getElementById(`schemeFile`).click();
 document.getElementById(`schemeFile`).onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const txt=await f.text();const sp=JSON.parse(txt);pushUndo();restore(sp);toast(`已导入方案文件`);}catch(err){toast(`方案文件解析失败`);}e.target.value=``;};
 
-/* ===== 帮助说明 ===== */
-const HELP={
- overview:{t:`控制测量设计器`,b:`<p>用于规划 GNSS 三角网、导线、二等水准三类控制网的选点设计。</p><p>基本流程：导入已知点 → 在地图上点击布设待测点 → 连网/连线 → 看右侧自动校核 → 保存方案或导出坐标。</p><p>顶栏可撤销/重做（Ctrl+Z）。每个版块标题旁的「?」都有说明。</p>`},
- locate:{t:`定位与底图`,b:`<p>搜索地名。如果重名了会被定位到奇怪的地方，有一种开盲盒的乐趣。如果你是要实习的南林学生，可以点「下蜀林场」快速定位。</p><p>高德卫星 / 街道图可切换；坐标内部统一按真实 WGS-84 处理。似乎存在什么问题，但主包懒得修了。</p>`},
- known:{t:`已知点数据`,b:`<p>导入 CSV/TXT/Excel 的已知点，显示为红三角；地图点击布的是待测点（圆形）。</p><p>列表或标记弹窗里可切换「已知 / 待测」。导入弹窗会先预览，确认经纬度落在测区再导入。</p><p>如果你是南林的学生并且正在尝试导入老师给的控制点，请选择高斯平面，不要用经纬度。</p>`},
- scheme:{t:`设计方案`,b:`<p>给当前设计起名保存，可随时读取或删除（存在本浏览器）。</p><p>「导出/导入方案(.json)」用于备份和换设备，建议每版留一份文件。</p>`},
- param:{t:`模式与参数`,b:`<p>顶部切换三种模式：</p><p><b>GNSS</b>：加点 / 连边 / 选三角（依次点三个点生成编号三角形并自动补基线）/ 自动构网。点列表里点「导」可设为供导线使用（同步）。</p><p><b>导线</b>：点空白末尾加点、点线段中间插点、点红三角控制点加入 GNSS 同步点。首尾点为起算/终点。</p><p><b>水准</b>：依次布设水准点（常与导线同点位，可一键复制）。视线长限值可在参数里调。</p>`},
- points:{t:`控制点列表`,b:`<p>在地图上点击布设待测点，或导入已知点。点名字可改名；「已/待」切类型；GNSS 的「导」设为供导线使用（实时同步到导线）；「删」删除。</p><p>导线模式下，点红三角"可用控制点"可加入 GNSS 同步点；点已画线段可在中间插点。</p><p>地图上的标记可直接拖动微调。</p>`},
- calc:{t:`边长累加器`,b:`<p>开启后，点击地图上的基线或导线段，把它们选进合计，实时显示条数与总长。</p><p>用于量算若干条边的长度之和；「清空所选」重置。</p>`},
- analysis:{t:`设计分析`,b:`<p>随布点自动校核（GNSS 至少 3 点、导线/水准至少 2 点）：</p><p><b>GNSS</b>：三角形数、基线长、闭合环、起算点。</p><p><b>导线</b>：边长、相邻边长比、转折角、全长。</p><p><b>水准</b>：路线长、往返总长、估算测站数。</p>`},
- io:{t:`导出与操作`,b:`<p>「复制坐标」复制为表格文本；「导出 CSV」下载点名/类型/经纬度的 csv（Excel 直接打开）。</p><p>「清空当前模式」只清当前模式；顶栏「全部重置」清空三种模式。</p>`},
-};
+/* ===== 帮助说明（文本在 help-text.js） ===== */
 const helpPop=document.getElementById(`helpPop`);
-function showHelp(key,anchor){const d=HELP[key];if(!d)return;helpPop.innerHTML=`<span class="close">×</span><h4>`+d.t+`</h4>`+d.b;helpPop.style.display=`block`;const r=anchor.getBoundingClientRect(),pw=helpPop.offsetWidth,ph=helpPop.offsetHeight;let left=r.right-pw;left=Math.max(8,Math.min(left,window.innerWidth-8-pw));let top=r.bottom+6;if(top+ph>window.innerHeight-8)top=r.top-ph-6;if(top<8)top=8;helpPop.style.left=left+`px`;helpPop.style.top=top+`px`;helpPop.classList.add(`show`);}
+function showHelp(key,anchor){const d=HELP[key];if(!d)return;const body=Array.isArray(d.body)?d.body.map(s=>`<p>`+s+`</p>`).join(``):d.body||``;helpPop.innerHTML=`<span class="close">×</span><h4>`+d.title+`</h4>`+body;helpPop.style.display=`block`;const r=anchor.getBoundingClientRect(),pw=helpPop.offsetWidth,ph=helpPop.offsetHeight;let left=r.right-pw;left=Math.max(8,Math.min(left,window.innerWidth-8-pw));let top=r.bottom+6;if(top+ph>window.innerHeight-8)top=r.top-ph-6;if(top<8)top=8;helpPop.style.left=left+`px`;helpPop.style.top=top+`px`;helpPop.classList.add(`show`);}
 function hideHelp(){helpPop.style.display=`none`;helpPop.classList.remove(`show`);helpPop._k=null;}
 document.addEventListener(`click`,e=>{const dot=e.target.closest(`.help-dot`);if(dot){e.stopPropagation();if(helpPop.classList.contains(`show`)&&helpPop._k===dot.dataset.help){hideHelp();return;}helpPop._k=dot.dataset.help;showHelp(dot.dataset.help,dot);return;}if(e.target.closest(`#helpPop`)){if(e.target.classList.contains(`close`))hideHelp();return;}hideHelp();});
 document.querySelectorAll('.panel-body,.float-popup').forEach(el=>el.addEventListener('scroll',hideHelp));

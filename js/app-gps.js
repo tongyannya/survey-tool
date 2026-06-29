@@ -104,7 +104,7 @@ function gpsMultiSample(onDone,onProgress){
 const gpsTracker={active:false,watchId:null,accCircle:null,hdMarker:null,heading:null,lastPos:null,_oh:null,kf:_kfNew(),_ref:null};
 
 function _gpsHdIcon(deg){
-  return L.divIcon({className:'',html:'<div class="gps-heading" style="transform:rotate('+deg+'deg)"><svg width="28" height="28" viewBox="0 0 28 28"><path d="M14 2L20 14L14 10L8 14Z" fill="#4285F4" opacity="0.85"/><circle cx="14" cy="12" r="4" fill="#4285F4" stroke="#fff" stroke-width="1.5"/></svg></div>',iconSize:[28,28],iconAnchor:[14,14]});
+  return L.divIcon({className:'',html:'<div class="gps-heading" style="transform:rotate('+deg+'deg);color:var(--accent)"><svg width="28" height="28" viewBox="0 0 28 28"><path d="M14 2L20 14L14 10L8 14Z" fill="currentColor" opacity="0.85"/><circle cx="14" cy="12" r="4" fill="currentColor" stroke="#fff" stroke-width="1.5"/></svg></div>',iconSize:[28,28],iconAnchor:[14,14]});
 }
 
 function _gpsHd(ll){
@@ -133,7 +133,7 @@ function startTracking(){
     gpsTracker.lastPos=filtered;
     const d=displayLL(filtered);
     if(!gpsTracker.accCircle){
-      gpsTracker.accCircle=L.circle(d,{radius:filtered.accuracy,fillColor:'#4285F4',fillOpacity:0.08,color:'#4285F4',opacity:0.25,weight:1,interactive:false,pane:'gpsPane'}).addTo(map);
+      gpsTracker.accCircle=L.circle(d,{radius:filtered.accuracy,fillColor:'#ffc145',fillOpacity:0.06,color:'#ffc145',opacity:0.2,weight:1,interactive:false,pane:'gpsPane'}).addTo(map);
     }else{
       gpsTracker.accCircle.setLatLng(d).setRadius(filtered.accuracy);
     }
