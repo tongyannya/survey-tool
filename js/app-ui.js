@@ -72,6 +72,10 @@ document.querySelectorAll(`.zoom-fit`).forEach(el=>{el.onclick=zoomToFit;});
 
 /* ===== 模式切换与参数 ===== */
 function setTabUI(){document.querySelectorAll(`.tab`).forEach(t=>t.classList.toggle(`active`,t.dataset.m===cur));}
+function switchMode(mode){
+  if(!M[mode]||cur===mode)return;
+  cur=mode;setTabUI();M.gnss.sel=null;M.gnss.triSel=[];calc.set=[];selectedPtIds.clear();buildParams();refresh();
+}
 function buildParams(){
   const box=document.getElementById(`paramBox`);
   document.getElementById(`modeTitleText`).textContent={gnss:`GNSS 控制网 · 三角网`,trav:`导线 · 附合/闭合`,lev:`水准路线 · 二等往返`}[cur];
@@ -94,13 +98,60 @@ function buildParams(){
   }
 }
 function subActive(id){[`subPoint`,`subEdge`,`subTri`].forEach(x=>{const el=document.getElementById(x);if(el)el.classList.toggle(`active`,x===id);});}
-document.querySelectorAll(`.tab`).forEach(tab=>{tab.onclick=()=>{cur=tab.dataset.m;setTabUI();M.gnss.sel=null;M.gnss.triSel=[];calc.set=[];selectedPtIds.clear();buildParams();refresh();};});
+document.querySelectorAll(`.tab`).forEach(tab=>{tab.onclick=()=>switchMode(tab.dataset.m);});
 
 /* ===== 累加器 ===== */
 document.getElementById(`calcToggle`).onclick=()=>{calc.on=!calc.on;if(!calc.on)calc.set=[];refresh();toast(calc.on?`累加器已开启：点击边累加`:`累加器已关闭`);};
 document.getElementById(`calcClear`).onclick=()=>{calc.set=[];refresh();};
 document.getElementById(`noteToggle`).onclick=()=>{noteMode=!noteMode;const btn=document.getElementById(`noteToggle`);btn.classList.toggle(`active`,noteMode);btn.textContent=noteMode?`停止添加`:`添加图记`;if(noteMode)toast(`图记模式：点击地图放置标注`);};
-document.getElementById(`noteClear`).onclick=async()=>{if(!M.notes.length){toast(`没有图记`);return;}const r=await showConfirm(`清空图记`,`<p>确定删除全部 `+M.notes.length+` 个图记？</p>`,[{text:`取消`,value:`cancel`},{text:`清空`,value:`del`,cls:`go`}]);if(!r||r.action!==`del`)return;pushUndo();M.notes.forEach(n=>map.removeLayer(n.marker));M.notes=[];toast(`已清空全部图记`);};
+document.getElementById(`noteClear`).onclick=async()=>{if(!M.notes.length){toast(`没有图记`);return;}const r=await showConfirm(`清空图记`,`<p>确定删除全部 `+M.notes.length+` 个图记？</p>`,[{text:`取消`,value:`cancel`},{text:`清空`,value:`del`,cls:`go`}]);if(!r||r.action!==`del`)return;pushUndo();M.notes.forEach(n=>map.removeLayer(n.marker));M.notes=[];refresh();toast(`已清空全部图记`);};
+let noteListExpanded=false;
+function renderNoteList(){
+  const box=document.getElementById(`noteList`);
+  if(!box)return;
+  box.innerHTML=``;
+  const toggle=document.createElement(`div`);
+  toggle.className=`note-toggle`;
+  const arrow=document.createElement(`span`);
+  arrow.textContent=noteListExpanded?`▼`:`▶`;
+  arrow.className=`note-toggle-arrow`;
+  toggle.appendChild(arrow);
+  const info=document.createElement(`span`);
+  info.textContent=M.notes.length+` 个图记`;
+  toggle.appendChild(info);
+  toggle.onclick=e=>{e.stopPropagation();noteListExpanded=!noteListExpanded;renderNoteList();};
+  box.appendChild(toggle);
+  if(!noteListExpanded)return;
+  if(!M.notes.length){const empty=document.createElement(`div`);empty.className=`note-list-empty`;empty.textContent=`暂无图记。`;box.appendChild(empty);return;}
+  M.notes.forEach((n,i)=>{
+    const row=document.createElement(`div`);
+    row.className=`note-row`+(n.dim?` dim`:``);
+    const no=document.createElement(`span`);
+    no.className=`note-no`;
+    no.textContent=`#`+(i+1);
+    row.appendChild(no);
+    const inp=document.createElement(`input`);
+    inp.type=`text`;
+    inp.value=n.text||``;
+    inp.placeholder=`备注文字`;
+    inp.onkeydown=e=>{if(e.key===`Enter`){e.preventDefault();inp.blur();}};
+    inp.onchange=()=>{const v=inp.value.trim();if(v===(n.text||``))return;pushUndo();n.text=v;n.marker.setIcon(noteIcon(n));refresh();};
+    row.appendChild(inp);
+    const dim=document.createElement(`button`);
+    dim.className=`ic`+(n.dim?` active`:``);
+    dim.textContent=`虚`;
+    dim.title=n.dim?`恢复图记`:`虚化图记`;
+    dim.onclick=()=>{pushUndo();n.dim=!n.dim;refresh();toast(n.dim?`图记已虚化`:`图记已恢复`);};
+    row.appendChild(dim);
+    const zoom=document.createElement(`button`);
+    zoom.className=`ic`;
+    zoom.title=`缩放到图记`;
+    zoom.innerHTML=`<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4"/><path d="M11 1h4v4"/><path d="M15 11v4h-4"/><path d="M5 15H1v-4"/></svg>`;
+    zoom.onclick=()=>map.setView(displayLL(n.wgs),map.getZoom(),{animate:false});
+    row.appendChild(zoom);
+    box.appendChild(row);
+  });
+}
 
 /* ===== 导出/复制 ===== */
 function download(fn,text,mime){const blob=new Blob([text],{type:mime||`text/plain;charset=utf-8`});const url=URL.createObjectURL(blob);const a=document.createElement(`a`);a.href=url;a.download=fn;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
@@ -110,6 +161,103 @@ document.getElementById(`csvBtn`).onclick=()=>{const pts=m().pts;if(!pts.length)
 function fallbackCopy(txt){const ta=document.createElement(`textarea`);ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand(`copy`);toast(`已复制`);}catch(e){toast(`复制失败`);}document.body.removeChild(ta);}
 document.getElementById(`clearModeBtn`).onclick=()=>{pushUndo();if(cur===`trav`||cur===`lev`){M[cur].routes.forEach(r=>{r.pts.forEach(p=>map.removeLayer(p.marker));});M[cur].impGhosts.forEach(g=>map.removeLayer(g.marker));M[cur].impGhosts=[];M[cur].routes=[];M[cur].activeRouteId=null;}else{m().pts.forEach(p=>map.removeLayer(p.marker));m().pts=[];m().impGhosts.forEach(g=>map.removeLayer(g.marker));m().impGhosts=[];if(cur===`gnss`){M.gnss.edges=[];M.gnss.triangles=[];M.gnss.sel=null;M.gnss.triSel=[];}}selectedPtIds.clear();refresh();toast(`已清空当前模式`);};
 function updateDatumNote(){document.getElementById(`datumNote`).textContent=currentBase===`sat`?`高德卫星底图(GCJ-02)已自动换算为真实 WGS-84 显示/导出；距离按 WGS-84 椭球 Vincenty 计算。`:`OSM 街道底图为 WGS-84，无偏移。`;}
+
+/* ===== 键盘快捷键 ===== */
+function isTextEditing(){
+  const el=document.activeElement;
+  if(!el)return false;
+  const tag=el.tagName;
+  return tag===`INPUT`||tag===`TEXTAREA`||tag===`SELECT`||el.isContentEditable;
+}
+function currentSelectablePts(){
+  if(cur===`gnss`)return M.gnss.pts;
+  const route=activeRouteOf(cur);
+  return route?route.pts.filter(p=>p.kind!==`turn`):[];
+}
+function selectedRefs(){
+  if(cur===`gnss`)return M.gnss.pts.filter(p=>selectedPtIds.has(p.id)).map(p=>({p,route:null}));
+  const refs=[];
+  M[cur].routes.forEach(route=>route.pts.forEach(p=>{if(selectedPtIds.has(p.id))refs.push({p,route});}));
+  return refs;
+}
+function canDeleteRef(ref){
+  if(cur===`gnss`)return true;
+  if(!ref.route||ref.route.locked)return false;
+  return !(cur===`lev`&&ref.route.linkedRouteId&&ref.p.link);
+}
+function deleteRef(ref){
+  const p=ref.p;
+  map.removeLayer(p.marker);
+  if(cur===`gnss`){
+    M.gnss.pts=M.gnss.pts.filter(x=>x!==p);
+    M.gnss.edges=M.gnss.edges.filter(e=>e.a!==p&&e.b!==p);
+    M.gnss.triangles=M.gnss.triangles.filter(t=>!t.pts.includes(p));
+    if(M.gnss.sel===p)M.gnss.sel=null;
+    M.gnss.triSel=M.gnss.triSel.filter(x=>x!==p);
+    return;
+  }
+  ref.route.pts=ref.route.pts.filter(x=>x!==p);
+  if(p.fromImpGhost&&!p.link){
+    const g={id:++uid,name:p.name,wgs:{lat:p.wgs.lat,lng:p.wgs.lng}};
+    g.marker=makeImpGhostMarker(cur,g);
+    M[cur].impGhosts.push(g);
+  }
+}
+function deleteSelectedPts(){
+  const refs=selectedRefs();
+  if(!refs.length){toast(`没有选中的点`);return;}
+  const deletable=refs.filter(canDeleteRef);
+  if(!deletable.length){toast(`选中的点不可删除`);return;}
+  pushUndo();
+  deletable.forEach(deleteRef);
+  const skipped=refs.length-deletable.length;
+  selectedPtIds.clear();refresh();
+  toast(skipped?`已删除 `+deletable.length+` 个点，跳过 `+skipped+` 个不可删除点`:`已删除 `+deletable.length+` 个点`);
+}
+function selectAllCurrentPts(){
+  const pts=currentSelectablePts();
+  if(!pts.length){toast(`当前路线没有可选点`);return;}
+  pts.forEach(p=>selectedPtIds.add(p.id));
+  updateSelUI();toast(`已全选 `+pts.length+` 个点`);
+}
+function closeTransientUI(){
+  if(helpPop&&helpPop.classList.contains(`show`)){hideHelp();return;}
+  if(map&&map._popup&&map.hasLayer(map._popup)){map.closePopup();return;}
+  if(typeof ctxMenu!==`undefined`&&ctxMenu&&ctxMenu.style.display===`block`){hideCtx();return;}
+  if(noteMode){
+    noteMode=false;
+    const btn=document.getElementById(`noteToggle`);
+    btn.classList.remove(`active`);
+    btn.textContent=`添加图记`;
+    toast(`图记模式已关闭`);
+    return;
+  }
+  if(floatOpen){
+    const name=floatOpen;
+    floatOpen=null;
+    document.querySelectorAll(`.float-popup`).forEach(p=>p.classList.remove(`open`));
+    if(name===`scheme`)hideHelp();
+    return;
+  }
+  if(M.gnss.sel||M.gnss.triSel.length){
+    M.gnss.sel=null;M.gnss.triSel=[];refreshIcons(`gnss`);
+    return;
+  }
+}
+document.addEventListener(`keydown`,e=>{
+  const k=e.key.toLowerCase();
+  if(e.key===`Control`){if(typeof ctrlObjectBegin===`function`)ctrlObjectBegin();return;}
+  if(isTextEditing())return;
+  if(k===`1`||k===`2`||k===`3`){e.preventDefault();switchMode({1:`gnss`,2:`trav`,3:`lev`}[k]);return;}
+  if(e.key===`Delete`){e.preventDefault();deleteSelectedPts();return;}
+  if(e.key===`Escape`){e.preventDefault();closeTransientUI();return;}
+  if((e.ctrlKey||e.metaKey)&&k===`a`){e.preventDefault();if(typeof ctrlObj!==`undefined`)ctrlObj.suppress=true;selectAllCurrentPts();return;}
+  if(!e.ctrlKey&&!e.metaKey&&!e.altKey&&k===`f`){e.preventDefault();zoomToFit();}
+});
+document.addEventListener(`keyup`,e=>{if(e.key===`Control`&&typeof ctrlObjectCommit===`function`)ctrlObjectCommit();});
+function releaseCtrlObject(){if(typeof ctrlObjectCancel===`function`)ctrlObjectCancel();}
+window.addEventListener(`blur`,releaseCtrlObject);
+document.addEventListener(`visibilitychange`,()=>{if(document.hidden)releaseCtrlObject();});
 
 /* ===== 方案管理 ===== */
 const LSKEY=`cs_schemes_v1`;let schemes={},lsOK=true;

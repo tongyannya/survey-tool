@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>控制测量设计器 · GNSS网 / 导线 / 水准</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="style.css?v=20260629f">
+<link rel="stylesheet" href="style.css?v=20260630g">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -27,6 +27,7 @@
 <main>
   <div class="map-wrap">
     <div id="map"></div>
+    <div id="ctrlObjectHint" class="ctrl-object-hint"><span>按住 Ctrl 选择对象</span><i class="help-dot" data-help="ctrlObject" title="Ctrl 对象选择说明">?</i></div>
 
     <div class="map-float map-search">
       <div class="search-box"><input id="searchInput" type="text" placeholder="输入地名，回车搜索"><button id="searchBtn">搜索</button></div>
@@ -53,7 +54,7 @@
         <div class="float-popup-header"><span>工具</span><span class="float-close" data-close="tools">×</span></div>
         <div class="tool-item"><div class="tool-name">边长累加器<i class="help-dot" data-help="calc">?</i></div><div class="tool-body"><div class="btn-row" style="margin-top:0"><button id="calcToggle" class="wide">开启累加器</button><button id="calcClear" class="wide">清空所选</button></div><div id="calcBox" class="note">关闭状态。开启后点击地图上的边/导线段即可累加长度。</div></div></div>
         <div class="tool-item"><div class="tool-name">平差解算（开发中）</div><div class="tool-body"><div class="note" style="margin-top:0">内业数据导入 → 最小二乘平差 → 结果导出</div></div></div>
-        <div class="tool-item"><div class="tool-name">图记/标注<i class="help-dot" data-help="notes">?</i></div><div class="tool-body"><div class="btn-row" style="margin-top:0"><button id="noteToggle" class="wide">添加图记</button><button id="noteClear" class="wide">清空全部图记</button></div><div id="noteBox" class="note">点击「添加图记」后在地图上点击放置标注。长按或右键图记可编辑/删除。</div></div></div>
+        <div class="tool-item"><div class="tool-name">图记/标注<i class="help-dot" data-help="notes">?</i></div><div class="tool-body"><div class="btn-row" style="margin-top:0"><button id="noteToggle" class="wide">添加图记</button><button id="noteClear" class="wide">清空全部图记</button></div><div id="noteBox" class="note">点击「添加图记」后在地图上点击放置标注。图记列表可编辑备注、虚化和定位。</div><div id="noteList" class="note-list"></div></div></div>
       </div>
       <div class="fab-btns">
         <div class="fab" id="fabScheme" title="方案管理 / 导出">
@@ -135,17 +136,17 @@
   <div class="modal-actions"><button id="impCancel">取消</button><button id="impGoAll">导入到所有模式</button><button id="impGo" class="go">导入到当前模式</button></div>
 </div></div>
 
-<script src="js/coords.js?v=20260629f"></script>
-<script src="js/app-state.js?v=20260629f"></script>
-<script src="js/app-map.js?v=20260629f"></script>
-<script src="js/app-points.js?v=20260629f"></script>
-<script src="js/app-render.js?v=20260629f"></script>
-<script src="js/app-triangulation.js?v=20260629f"></script>
-<script src="js/app-sync.js?v=20260629f"></script>
-<script src="js/app-analysis.js?v=20260629f"></script>
-<script src="js/app-import.js?v=20260629f"></script>
-<script src="js/app-gps.js?v=20260629f"></script>
-<script src="js/help-text.js?v=20260629f"></script>
-<script src="js/app-ui.js?v=20260629f"></script>
+<script src="js/coords.js?v=20260630g"></script>
+<script src="js/app-state.js?v=20260630g"></script>
+<script src="js/app-map.js?v=20260630g"></script>
+<script src="js/app-points.js?v=20260630g"></script>
+<script src="js/app-render.js?v=20260630g"></script>
+<script src="js/app-triangulation.js?v=20260630g"></script>
+<script src="js/app-sync.js?v=20260630g"></script>
+<script src="js/app-analysis.js?v=20260630g"></script>
+<script src="js/app-import.js?v=20260630g"></script>
+<script src="js/app-gps.js?v=20260630g"></script>
+<script src="js/help-text.js?v=20260630g"></script>
+<script src="js/app-ui.js?v=20260630g"></script>
 </body>
 </html>

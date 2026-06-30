@@ -2,9 +2,9 @@
 function triPerimeter(t){let s=0;for(let i=0;i<3;i++)s+=vincenty(t.pts[i].wgs,t.pts[(i+1)%3].wgs);return s;}
 function refreshGnss(){
   const g=M.gnss,box=document.getElementById(`analysis`);
-  g.triangles.forEach((t,k)=>{const poly=L.polygon(t.pts.map(p=>p.marker.getLatLng()),{color:`#ffc145`,weight:1,fillColor:`#ffc145`,fillOpacity:.12,interactive:false}).addTo(map);g.triLayers.push(poly);const c=t.pts.reduce((a,p)=>{const ll=p.marker.getLatLng();return {lat:a.lat+ll.lat/3,lng:a.lng+ll.lng/3};},{lat:0,lng:0});g.triLayers.push(L.marker([c.lat,c.lng],{icon:L.divIcon({className:``,html:`<div class="tri-label">`+circ(k+1)+`</div>`,iconSize:[20,20],iconAnchor:[10,10]}),interactive:false}).addTo(map));});
+  g.triangles.forEach((t,k)=>{const poly=L.polygon(t.pts.map(p=>p.marker.getLatLng()),{color:`#91D0CD`,weight:1,fillColor:`#91D0CD`,fillOpacity:.12,interactive:false}).addTo(map);g.triLayers.push(poly);const c=t.pts.reduce((a,p)=>{const ll=p.marker.getLatLng();return {lat:a.lat+ll.lat/3,lng:a.lng+ll.lng/3};},{lat:0,lng:0});g.triLayers.push(L.marker([c.lat,c.lng],{icon:L.divIcon({className:``,html:`<div class="tri-label">`+circ(k+1)+`</div>`,iconSize:[20,20],iconAnchor:[10,10]}),interactive:false}).addTo(map));});
   let lens=[];
-  g.edges.forEach(e=>{const A=e.a.marker.getLatLng(),B=e.b.marker.getLatLng(),d=vincenty(e.a.wgs,e.b.wgs);lens.push(d);const key=keyOf(e.a.id,e.b.id),sel=calc.on&&calcHas(key);drawSeg(`gnss`,A,B,{color:sel?`#ffffff`:(d>=g.minEdge?`#ffc145`:`#ff6b6b`),weight:sel?5:2.5,dist:d,bad:d<g.minEdge&&!sel,onClick:calc.on?()=>toggleCalc(`gnss`,e.a.id,e.b.id):null});});
+  g.edges.forEach(e=>{const A=e.a.marker.getLatLng(),B=e.b.marker.getLatLng(),d=vincenty(e.a.wgs,e.b.wgs);lens.push(d);const key=keyOf(e.a.id,e.b.id),calcSel=calc.on&&calcHas(key),ctrlSel=ctrlObjectEdgeSelected(`gnss`,null,null,e.a,e.b),sel=calcSel||ctrlSel;drawSeg(`gnss`,A,B,{color:ctrlSel?`#ffc145`:(calcSel?`#ffffff`:(d>=g.minEdge?`#91D0CD`:`#ff6b6b`)),weight:sel?5:2.5,dist:d,bad:d<g.minEdge&&!sel,onClick:(calc.on||ctrlObj.active)?(ev)=>{if(ctrlObj.active&&ctrlObjectAddEdge(`gnss`,null,null,e.a,e.b))return;if(calc.on)toggleCalc(`gnss`,e.a.id,e.b.id);}:null});});
   if(g.pts.length<3){box.innerHTML=`<div class="note">布点后自动计算。</div>`;return;}
   const st=gnssStats(),kc=kindCounts(g.pts),min=lens.length?Math.min(...lens):0,max=lens.length?Math.max(...lens):0;
   let html=`<div class="summary"><div class="stat"><div class="k">点数(已知/待测)</div><div class="v">`+kc.known+` / `+kc.nw+`</div></div><div class="stat"><div class="k">基线数</div><div class="v">`+g.edges.length+`</div></div><div class="stat"><div class="k">三角形(自动)</div><div class="v">`+st.tri+`</div></div><div class="stat"><div class="k">已编号三角网</div><div class="v">`+g.triangles.length+`</div></div><div class="stat"><div class="k">最短边</div><div class="v">`+(min?min.toFixed(0):`—`)+` m</div></div><div class="stat"><div class="k">最长边</div><div class="v">`+(max?max.toFixed(0):`—`)+` m</div></div></div>`;
@@ -28,14 +28,16 @@ function refreshTrav(){
     M.trav.activeRouteId=route.id;
     for(let i=0;i<pts.length-1;i++){
       const A=pts[i].marker.getLatLng(),B=pts[i+1].marker.getLatLng(),d=vincenty(pts[i].wgs,pts[i+1].wgs);
-      const key=keyOf(pts[i].id,pts[i+1].id),sel=calc.on&&calcHas(key);
-      drawSeg(`trav`,A,B,{color:sel?`#ffffff`:`#5ab0ff`,weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[i].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`trav`,pts[i].id,pts[i+1].id):(ev)=>showSegPopup(`trav`,i,ev,route)):null});
+      const key=keyOf(pts[i].id,pts[i+1].id),sel=(calc.on&&calcHas(key))||ctrlObjectEdgeSelected(`trav`,route,i,pts[i],pts[i+1]);
+      const ctrlSel=ctrlObjectEdgeSelected(`trav`,route,i,pts[i],pts[i+1]);
+      drawSeg(`trav`,A,B,{color:ctrlSel?`#ffc145`:(sel?`#ffffff`:`#5ab0ff`),weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[i].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`trav`,pts[i].id,pts[i+1].id):(ev)=>showSegPopup(`trav`,i,ev,route)):null});
     }
     if(route.closed&&pts.length>=3){
       const last=pts[pts.length-1],first=pts[0];
       const A=last.marker.getLatLng(),B=first.marker.getLatLng(),d=vincenty(last.wgs,first.wgs);
-      const key=keyOf(last.id,first.id),sel=calc.on&&calcHas(key);
-      drawSeg(`trav`,A,B,{color:sel?`#ffffff`:`#5ab0ff`,weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[pts.length-1].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`trav`,last.id,first.id):(ev)=>showSegPopup(`trav`,pts.length-1,ev,route)):null});
+      const key=keyOf(last.id,first.id),sel=(calc.on&&calcHas(key))||ctrlObjectEdgeSelected(`trav`,route,pts.length-1,last,first);
+      const ctrlSel=ctrlObjectEdgeSelected(`trav`,route,pts.length-1,last,first);
+      drawSeg(`trav`,A,B,{color:ctrlSel?`#ffc145`:(sel?`#ffffff`:`#5ab0ff`),weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[pts.length-1].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`trav`,last.id,first.id):(ev)=>showSegPopup(`trav`,pts.length-1,ev,route)):null});
     }
     if(isAct){
       for(let i=1;i<pts.length-1;i++){const ang=angleAt(pts[i-1].wgs,pts[i].wgs,pts[i+1].wgs);if(ang<M.trav.minAng)M.trav.lines.push(L.marker(pts[i].marker.getLatLng(),{icon:L.divIcon({className:``,html:`<div class="ang-label" style="margin-top:-26px;">`+ang.toFixed(0)+`°</div>`,iconSize:[0,0]}),interactive:false}).addTo(map));}
@@ -113,14 +115,16 @@ function refreshLev(){
     M.lev.activeRouteId=route.id;
     for(let i=0;i<pts.length-1;i++){
       const A=pts[i].marker.getLatLng(),B=pts[i+1].marker.getLatLng(),d=vincenty(pts[i].wgs,pts[i+1].wgs);
-      const key=keyOf(pts[i].id,pts[i+1].id),sel=calc.on&&calcHas(key);
-      drawSeg(`lev`,A,B,{color:sel?`#ffffff`:`#b388ff`,weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[i].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`lev`,pts[i].id,pts[i+1].id):(pts[i].knownEdgeAfter?null:(route.linkedRouteId?(ev)=>showTurnPopup(route,i,ev):(ev)=>showSegPopup(`lev`,i,ev,route)))):null});
+      const key=keyOf(pts[i].id,pts[i+1].id),sel=(calc.on&&calcHas(key))||ctrlObjectEdgeSelected(`lev`,route,i,pts[i],pts[i+1]);
+      const ctrlSel=ctrlObjectEdgeSelected(`lev`,route,i,pts[i],pts[i+1]);
+      drawSeg(`lev`,A,B,{color:ctrlSel?`#ffc145`:(sel?`#ffffff`:`#b388ff`),weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[i].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`lev`,pts[i].id,pts[i+1].id):(pts[i].knownEdgeAfter?null:(route.linkedRouteId?(ev)=>showTurnPopup(route,i,ev):(ev)=>showSegPopup(`lev`,i,ev,route)))):null});
     }
     if(route.closed&&pts.length>=3){
       const last=pts[pts.length-1],first=pts[0];
       const A=last.marker.getLatLng(),B=first.marker.getLatLng(),d=vincenty(last.wgs,first.wgs);
-      const key=keyOf(last.id,first.id),sel=calc.on&&calcHas(key);
-      drawSeg(`lev`,A,B,{color:sel?`#ffffff`:`#b388ff`,weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[pts.length-1].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`lev`,last.id,first.id):(pts[pts.length-1].knownEdgeAfter?null:(route.linkedRouteId?(ev)=>showTurnPopup(route,pts.length-1,ev):(ev)=>showSegPopup(`lev`,pts.length-1,ev,route)))):null});
+      const key=keyOf(last.id,first.id),sel=(calc.on&&calcHas(key))||ctrlObjectEdgeSelected(`lev`,route,pts.length-1,last,first);
+      const ctrlSel=ctrlObjectEdgeSelected(`lev`,route,pts.length-1,last,first);
+      drawSeg(`lev`,A,B,{color:ctrlSel?`#ffc145`:(sel?`#ffffff`:`#b388ff`),weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[pts.length-1].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`lev`,last.id,first.id):(pts[pts.length-1].knownEdgeAfter?null:(route.linkedRouteId?(ev)=>showTurnPopup(route,pts.length-1,ev):(ev)=>showSegPopup(`lev`,pts.length-1,ev,route)))):null});
     }
   });
   M.lev.activeRouteId=savedId;

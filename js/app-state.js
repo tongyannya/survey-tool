@@ -51,7 +51,7 @@ function serialize(){
   sp.modes.gnss.edges=M.gnss.edges.map(e=>[e.a.id,e.b.id]);
   sp.modes.gnss.triangles=M.gnss.triangles.map(t=>({pts:t.pts.map(p=>p.id),note:t.note||``}));
   const mc=trueLL(map.getCenter());sp.mapView={lat:mc.lat,lng:mc.lng,zoom:map.getZoom()};
-  sp.notes=M.notes.map(n=>({id:n.id,text:n.text||``,wgs:{lat:n.wgs.lat,lng:n.wgs.lng}}));
+  sp.notes=M.notes.map(n=>({id:n.id,text:n.text||``,dim:!!n.dim,wgs:{lat:n.wgs.lat,lng:n.wgs.lng}}));
   sp.bookmarks=bookmarks.map(b=>({name:b.name,lat:b.lat,lng:b.lng,zoom:b.zoom}));
   return sp;
 }
@@ -105,7 +105,7 @@ function restore(sp){
   const gid={};M.gnss.pts.forEach(p=>gid[p.id]=p);
   (sp.modes.gnss.edges||[]).forEach(([a,b])=>{const pa=gid[a],pb=gid[b];if(pa&&pb)M.gnss.edges.push({a:pa,b:pb});});
   (sp.modes.gnss.triangles||[]).forEach(t=>{const ps=t.pts.map(id=>gid[id]);if(ps.every(x=>x))M.gnss.triangles.push({pts:ps,note:t.note||``});});
-  (sp.notes||[]).forEach(d=>{const n={id:d.id,text:d.text||``,wgs:{lat:d.wgs.lat,lng:d.wgs.lng}};n.marker=makeNoteMarker(n);n.marker.addTo(map);M.notes.push(n);});
+  (sp.notes||[]).forEach(d=>{const n={id:d.id,text:d.text||``,dim:!!d.dim,wgs:{lat:d.wgs.lat,lng:d.wgs.lng}};n.marker=makeNoteMarker(n);n.marker.addTo(map);M.notes.push(n);});
   let mx=sp.uid||0;
   M.gnss.pts.forEach(p=>mx=Math.max(mx,p.id));M.gnss.impGhosts.forEach(g=>mx=Math.max(mx,g.id));
   M.trav.routes.forEach(r=>{r.pts.forEach(p=>mx=Math.max(mx,p.id));mx=Math.max(mx,r.id);});

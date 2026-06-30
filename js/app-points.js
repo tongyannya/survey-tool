@@ -1,6 +1,191 @@
 /* ===== 标记与交互 ===== */
 let _dragging=false;
 let noteMode=false;
+const ctrlObj={active:false,items:[],mode:null,suppress:false,snap:null,marker:null};
+const CTRL_SNAP_SHOW=18,CTRL_SNAP_HIT=8;
+function ctrlObjectStatus(text){
+  const el=document.getElementById(`ctrlObjectHint`);
+  const label=el&&el.querySelector(`span`);
+  if(label)label.textContent=text||`按住 Ctrl 选择对象`;
+}
+function ctrlObjectPointSelected(p){return ctrlObj.active&&ctrlObj.items.some(x=>x.type===`point`&&x.point===p);}
+function ctrlObjectEdgeSelected(mode,route,segIdx,a,b){
+  if(!ctrlObj.active)return false;
+  return ctrlObj.items.some(x=>{
+    if(x.type!==`edge`||x.mode!==mode)return false;
+    if(mode===`gnss`)return (x.a===a&&x.b===b)||(x.a===b&&x.b===a);
+    return x.route===route&&x.segIdx===segIdx;
+  });
+}
+function ctrlObjectBegin(){
+  if(ctrlObj.active)return;
+  if(typeof hideHelp===`function`)hideHelp();
+  if(map&&map._popup){map.closePopup(map._popup);document.querySelectorAll(`.leaflet-popup`).forEach(p=>p.remove());}
+  if(typeof ctxMenu!==`undefined`&&ctxMenu&&ctxMenu.style.display===`block`&&typeof hideCtx===`function`)hideCtx();
+  if(typeof floatOpen!==`undefined`&&floatOpen){floatOpen=null;document.querySelectorAll(`.float-popup`).forEach(p=>p.classList.remove(`open`));}
+  ctrlObj.active=true;ctrlObj.items=[];ctrlObj.mode=cur;ctrlObj.suppress=false;
+  ctrlObjectStatus(`Ctrl 选择对象中`);
+  refresh();
+}
+function ctrlObjectHideSnap(){
+  ctrlObj.snap=null;
+  if(ctrlObj.marker){map.removeLayer(ctrlObj.marker);ctrlObj.marker=null;}
+}
+function ctrlObjectCancel(){
+  if(!ctrlObj.active)return;
+  ctrlObj.active=false;ctrlObj.items=[];ctrlObj.mode=null;ctrlObj.suppress=false;ctrlObjectHideSnap();
+  ctrlObjectStatus();
+  refresh();
+}
+function ctrlObjectAddPoint(mode,p,route){
+  if(!ctrlObj.active||ctrlObj.mode!==cur)return false;
+  if(mode!==cur)return false;
+  const hit=ctrlObj.items.find(x=>x.type===`point`&&x.point===p);
+  if(hit)ctrlObj.items=ctrlObj.items.filter(x=>x!==hit);
+  else ctrlObj.items.push({type:`point`,mode,point:p,route:route||null});
+  ctrlObjectStatus(`已选 `+ctrlObj.items.length+` 个对象`);
+  refreshIcons(mode);
+  return true;
+}
+function ctrlObjectAddEdge(mode,route,segIdx,a,b){
+  if(!ctrlObj.active||ctrlObj.mode!==cur)return false;
+  if(mode!==cur)return false;
+  const hit=ctrlObj.items.find(x=>{
+    if(x.type!==`edge`||x.mode!==mode)return false;
+    if(mode===`gnss`)return (x.a===a&&x.b===b)||(x.a===b&&x.b===a);
+    return x.route===route&&x.segIdx===segIdx;
+  });
+  if(hit)ctrlObj.items=ctrlObj.items.filter(x=>x!==hit);
+  else ctrlObj.items.push({type:`edge`,mode,route:route||null,segIdx,a,b});
+  ctrlObjectStatus(`已选 `+ctrlObj.items.length+` 个对象`);
+  refresh();
+  return true;
+}
+function samePointSet(a,b){
+  if(a.length!==b.length)return false;
+  const s=new Set(a.map(p=>p.id));
+  return b.every(p=>s.has(p.id));
+}
+function triangleIndex(pts){
+  return M.gnss.triangles.findIndex(t=>samePointSet(t.pts,pts));
+}
+function toggleGnssTriangle(pts){
+  const g=M.gnss;
+  if(pts.length!==3)return false;
+  const idx=triangleIndex(pts);
+  pushUndo();
+  if(idx>=0){g.triangles.splice(idx,1);refresh();toast(`已取消三角网`);return true;}
+  ensureEdge(pts[0],pts[1]);ensureEdge(pts[1],pts[2]);ensureEdge(pts[2],pts[0]);
+  g.triangles.push({pts:[pts[0],pts[1],pts[2]],note:``});
+  refresh();toast(`已添加三角网 `+circ(g.triangles.length));
+  return true;
+}
+function commitCtrlGnss(items){
+  const pts=items.filter(x=>x.type===`point`).map(x=>x.point);
+  const edges=items.filter(x=>x.type===`edge`);
+  if(items.length===2&&pts.length===2){pushUndo();const existed=M.gnss.edges.some(e=>(e.a===pts[0]&&e.b===pts[1])||(e.a===pts[1]&&e.b===pts[0]));toggleEdge(pts[0],pts[1]);refresh();toast(existed?`已取消基线`:`已连边`);return;}
+  if(items.length===3&&pts.length===3){toggleGnssTriangle(pts);return;}
+  if(items.length===3&&edges.length===3){
+    const ep=[];edges.forEach(e=>{ep.push(e.a,e.b);});
+    const uniq=[...new Map(ep.map(p=>[p.id,p])).values()];
+    if(uniq.length===3){toggleGnssTriangle(uniq);return;}
+  }
+  if(items.length===2&&edges.length===1&&pts.length===1){
+    const e=edges[0],p=pts[0];
+    if(p!==e.a&&p!==e.b){toggleGnssTriangle([e.a,e.b,p]);return;}
+  }
+  toast(`GNSS：请选择两点连边，三点/三边/一边一点切换三角网`);
+}
+function commitCtrlRoute(mode,items){
+  const pts=items.filter(x=>x.type===`point`);
+  if(!pts.length)return;
+  const route=pts[0].route;
+  if(!route||route.locked){toast(ROUTE_LABEL[mode]+`已锁定或未选中路线`);return;}
+  if(pts.some(x=>x.route!==route)){toast(`请选择同一条`+ROUTE_LABEL[mode]+`上的点`);return;}
+  if(pts.length<2)return;
+  const ordered=pts.map(x=>x.point);
+  const firstIdx=route.pts.indexOf(ordered[0]);
+  if(firstIdx<0)return;
+  const selected=new Set(ordered);
+  const base=route.pts.filter(p=>!selected.has(p));
+  const insertAt=route.pts.slice(0,firstIdx).filter(p=>!selected.has(p)).length;
+  pushUndo();
+  route.pts=[...base.slice(0,insertAt),...ordered,...base.slice(insertAt)];
+  refresh();
+  toast(`已按选择顺序重连 `+ordered.length+` 个点`);
+}
+function ctrlObjectCommit(){
+  if(!ctrlObj.active)return;
+  const items=ctrlObj.items.slice(),mode=ctrlObj.mode,suppress=ctrlObj.suppress;
+  ctrlObj.active=false;ctrlObj.items=[];ctrlObj.mode=null;ctrlObj.suppress=false;ctrlObjectHideSnap();ctrlObjectStatus();
+  refresh();
+  if(suppress||!items.length)return;
+  if(mode===`gnss`)commitCtrlGnss(items);
+  else if(mode===`trav`||mode===`lev`)commitCtrlRoute(mode,items);
+}
+function projectPointToSegment(P,A,B){
+  const ax=A.x,ay=A.y,bx=B.x,by=B.y,px=P.x,py=P.y;
+  const dx=bx-ax,dy=by-ay,len2=dx*dx+dy*dy;
+  if(!len2)return {x:ax,y:ay,d:Math.hypot(px-ax,py-ay),t:0};
+  const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/len2));
+  const x=ax+t*dx,y=ay+t*dy;
+  return {x,y,d:Math.hypot(px-x,py-y),t};
+}
+function ctrlObjectEdges(){
+  const edges=[];
+  if(cur===`gnss`){
+    M.gnss.edges.forEach(e=>edges.push({mode:`gnss`,route:null,segIdx:null,a:e.a,b:e.b,action:null}));
+  }else if(cur===`trav`||cur===`lev`){
+    const route=activeRouteOf(cur);
+    if(route&&!route.hidden&&!route.locked){
+      for(let i=0;i<route.pts.length-1;i++)edges.push({mode:cur,route,segIdx:i,a:route.pts[i],b:route.pts[i+1]});
+      if(route.closed&&route.pts.length>=3)edges.push({mode:cur,route,segIdx:route.pts.length-1,a:route.pts[route.pts.length-1],b:route.pts[0]});
+    }
+  }
+  return edges;
+}
+function ctrlObjectUpdateSnap(latlng){
+  if(!ctrlObj.active||ctrlObj.mode!==cur){ctrlObjectHideSnap();return;}
+  const p=map.latLngToLayerPoint(latlng);
+  const nearPoint=(()=>{
+    const pts=cur===`gnss`?M.gnss.pts:(activeRouteOf(cur)?activeRouteOf(cur).pts:[]);
+    return pts.some(pt=>map.hasLayer(pt.marker)&&p.distanceTo(map.latLngToLayerPoint(pt.marker.getLatLng()))<=16);
+  })();
+  if(nearPoint){ctrlObjectHideSnap();return;}
+  let best=null;
+  ctrlObjectEdges().forEach(e=>{
+    const A=map.latLngToLayerPoint(e.a.marker.getLatLng()),B=map.latLngToLayerPoint(e.b.marker.getLatLng());
+    const pr=projectPointToSegment(p,A,B);
+    if(pr.d<=CTRL_SNAP_SHOW&&(!best||pr.d<best.d)){
+      best={...e,d:pr.d,latlng:map.layerPointToLatLng(L.point(pr.x,pr.y)),hit:pr.d<=CTRL_SNAP_HIT};
+    }
+  });
+  if(!best){ctrlObjectHideSnap();return;}
+  ctrlObj.snap=best;
+  const html=`<div class="ctrl-snap-marker`+(best.hit?` hit`:``)+`"></div>`;
+  const icon=L.divIcon({className:``,html,iconSize:[18,18],iconAnchor:[9,9]});
+  if(!ctrlObj.marker){
+    ctrlObj.marker=L.marker(best.latlng,{icon,interactive:false}).addTo(map);
+  }else{
+    ctrlObj.marker.setLatLng(best.latlng);ctrlObj.marker.setIcon(icon);
+  }
+}
+function ctrlObjectUseSnap(){
+  const s=ctrlObj.snap;
+  if(!ctrlObj.active||!s||!s.hit)return false;
+  if(s.mode===`gnss`)return ctrlObjectAddEdge(`gnss`,null,null,s.a,s.b);
+  ctrlObj.suppress=true;
+  const ev={latlng:s.latlng};
+  if(calc.on){toggleCalc(s.mode,s.a.id,s.b.id);return true;}
+  if(s.mode===`trav`){showSegPopup(`trav`,s.segIdx,ev,s.route);return true;}
+  if(s.mode===`lev`){
+    if(s.a.knownEdgeAfter){toast(`水准已知边不可编辑`);return true;}
+    if(s.route.linkedRouteId)showTurnPopup(s.route,s.segIdx,ev);
+    else showSegPopup(`lev`,s.segIdx,ev,s.route);
+    return true;
+  }
+  return false;
+}
 function isTerminal(mode,i){
   if(mode===`trav`||mode===`lev`){const r=activeRouteOf(mode);if(!r||r.closed)return false;return i===0||i===r.pts.length-1;}
   return false;
@@ -18,11 +203,11 @@ function refreshIcons(mode){
     const savedId=M[mode].activeRouteId;
     M[mode].routes.forEach(route=>{
       M[mode].activeRouteId=route.id;
-      route.pts.forEach((p,i)=>p.marker.setIcon(makeIcon(mode,i,{term:isTerminal(mode,i),anchor:!!route.parentId&&i===0})));
+      route.pts.forEach((p,i)=>p.marker.setIcon(makeIcon(mode,i,{term:isTerminal(mode,i),anchor:!!route.parentId&&i===0,sel:ctrlObjectPointSelected(p)})));
     });
     M[mode].activeRouteId=savedId;
   }else{
-    M[mode].pts.forEach((p,i)=>p.marker.setIcon(makeIcon(mode,i,{term:isTerminal(mode,i)})));
+    M[mode].pts.forEach((p,i)=>p.marker.setIcon(makeIcon(mode,i,{term:isTerminal(mode,i),sel:ctrlObjectPointSelected(p)||M.gnss.triSel.includes(p)})));
   }
 }
 function delAction(mode,p){
@@ -38,8 +223,10 @@ function bindMarker(mode,p){
     return null;
   }
   if(!p.link){p.marker.on(`dragstart`,()=>{_dragging=true;pushUndo();});p.marker.on(`drag`,()=>{p.wgs=trueLL(p.marker.getLatLng());refresh();});p.marker.on(`dragend`,()=>{_dragging=false;refreshIcons(mode);});}
-  p.marker.on(`click`,()=>{
+  p.marker.on(`click`,ev=>{
+    if(ev)L.DomEvent.stopPropagation(ev);
     if(calc.on)return;
+    if(ctrlObj.active&&ctrlObjectAddPoint(mode,p,ownerRoute()))return;
     if(mode===`gnss`){
       const i=M.gnss.pts.indexOf(p);
       if(M.gnss.sub===`edge`){const g=M.gnss;if(!g.sel){g.sel=p;p.marker.setIcon(makeIcon(`gnss`,i,{sel:true}));}else if(g.sel===p){g.sel=null;refreshIcons(`gnss`);}else{pushUndo();toggleEdge(g.sel,p);g.sel=null;refresh();}return;}
@@ -68,18 +255,31 @@ function bindMarker(mode,p){
     else{idx=or?or.pts.indexOf(p):0;const sid=M[mode].activeRouteId;if(or)M[mode].activeRouteId=or.id;lbl=label(mode,idx>=0?idx:0);M[mode].activeRouteId=sid;}
     const isLocked=or&&or.locked;
     const div=document.createElement(`div`);div.style.textAlign=`center`;
-    const nameInp=document.createElement(`input`);nameInp.type=`text`;nameInp.value=p.name||lbl;
+    const originalName=p.name||``;
+    const originalDisplay=p.name||lbl;
+    const nameInp=document.createElement(`input`);nameInp.type=`text`;nameInp.value=originalDisplay;
     nameInp.style.cssText=`width:100%;padding:4px 8px;border:1px solid var(--line);border-radius:4px;background:var(--panel2);color:var(--text);font-size:13px;text-align:center;font-weight:600;margin-bottom:6px;`;
     if(isLocked)nameInp.disabled=true;
-    nameInp.onkeydown=ev=>{if(ev.key===`Enter`){ev.preventDefault();const v=nameInp.value.trim();if(v!==(p.name||lbl)){pushUndo();p.name=v||null;if(p.link)p.indepName=true;}map.closePopup();refresh();}};
+    let skipNameCommit=false;
+    function commitName(){
+      if(skipNameCommit||isLocked)return;
+      const v=nameInp.value.trim();
+      if(!v)return;
+      if(!originalName&&v===originalDisplay)return;
+      if(v!==originalName){pushUndo();p.name=v;if(p.link)p.indepName=true;refresh();}
+    }
+    nameInp.onkeydown=ev=>{
+      if(ev.key===`Enter`){ev.preventDefault();commitName();skipNameCommit=true;map.closePopup();}
+      else if(ev.key===`Escape`){ev.preventDefault();ev.stopPropagation();if(nameInp.value!==originalDisplay)nameInp.value=originalDisplay;else{skipNameCommit=true;map.closePopup();}}
+    };
     div.appendChild(nameInp);
     if(p.kind===`turn`){
       const infoT=document.createElement(`div`);infoT.style.cssText=`font-size:12px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px;`;infoT.textContent=`转点`;
       if(!isLocked){const li=document.createElement(`span`);li.className=`gps-locate-icon`;li.title=`GPS采样定位`;li.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>`;li.onclick=function(ev){ev.stopPropagation();if(li.classList.contains(`sampling`))return;li.classList.add(`sampling`);map.closePopup();toast(`采样中 0/5…`);gpsMultiSample(function(r){if(!r)return;pushUndo();p.wgs={lat:r.lat,lng:r.lng};p.marker.setLatLng(displayLL(p.wgs));map.panTo(displayLL(p.wgs));refresh();toast(`已定位（精度 `+r.accuracy.toFixed(1)+`m，采样`+r.n+`次，有效`+r.used+`次）`);},function(n,t){toast(`采样中 `+n+`/`+t+`…`);});};infoT.appendChild(li);}
       div.appendChild(infoT);
       if(!isLocked){const db=document.createElement(`button`);db.className=`del-popup-btn`;db.textContent=`删除转点`;db.onclick=()=>{map.closePopup();pushUndo();removePoint(`lev`,p);};div.appendChild(db);}
-      L.popup({offset:[0,-8]}).setLatLng(p.marker.getLatLng()).setContent(div).openOn(map);
-      setTimeout(()=>{if(!isLocked){nameInp.focus();nameInp.select();}},100);
+      const pop=L.popup({offset:[0,-8]}).setLatLng(p.marker.getLatLng()).setContent(div).openOn(map);
+      pop.on(`remove`,commitName);
       return;
     }
     const isLevLinked=mode===`lev`&&p.link&&or&&or.linkedRouteId;
@@ -104,10 +304,10 @@ function bindMarker(mode,p){
       div.appendChild(spb);
     }
     if(!isLocked&&!isLevLinked){
-      const db=document.createElement(`button`);db.className=`del-popup-btn`;const da=delAction(mode,p);db.textContent=da.title;db.onclick=()=>{map.closePopup();da.fn();};div.appendChild(db);
+      const db=document.createElement(`button`);db.className=`del-popup-btn`;const da=delAction(mode,p);db.textContent=da.title;db.onclick=()=>{skipNameCommit=true;map.closePopup();da.fn();};div.appendChild(db);
     }
-    L.popup({offset:[0,-12]}).setLatLng(p.marker.getLatLng()).setContent(div).openOn(map);
-    setTimeout(()=>{if(!isLocked){nameInp.focus();nameInp.select();}},100);
+    const pop=L.popup({offset:[0,-12]}).setLatLng(p.marker.getLatLng()).setContent(div).openOn(map);
+    pop.on(`remove`,commitName);
   }
   p.marker.on(`contextmenu`,showEditPopup);
   let _lpTimer=null;
@@ -159,6 +359,11 @@ function showSegPopup(mode,segIdx,ev,route){
     const btnIns=document.createElement(`button`);btnIns.textContent=`在此处插入新点`;btnIns.className=`btn sm`;
     btnIns.onclick=()=>{map.closePopup();insertOnSegment(mode,segIdx,ev.latlng);};
     div.appendChild(btnIns);
+    if(mode===`lev`){
+      const btnTurn=document.createElement(`button`);btnTurn.textContent=`插入转点`;btnTurn.className=`btn sm`;
+      btnTurn.onclick=()=>{map.closePopup();insertTurnPoint(route,segIdx,ev.latlng);};
+      div.appendChild(btnTurn);
+    }
   }
   if(mode===`trav`){
     const btnKE=document.createElement(`button`);btnKE.textContent=isKE?`取消已知边`:`设为已知边`;btnKE.className=`btn sm`;
@@ -187,7 +392,14 @@ function showTurnPopup(route,segIdx,ev){
   L.popup({closeButton:true,minWidth:100}).setLatLng(ev.latlng).setContent(div).openOn(map);
 }
 function removePoint(mode,p){map.removeLayer(p.marker);const M0=M[mode];M0.pts=M0.pts.filter(x=>x!==p);if(mode===`gnss`){M0.edges=M0.edges.filter(e=>e.a!==p&&e.b!==p);M0.triangles=M0.triangles.filter(t=>!t.pts.includes(p));if(M0.sel===p)M0.sel=null;M0.triSel=M0.triSel.filter(x=>x!==p);}refresh();}
-function toggleEdge(a,b){const g=M.gnss;const idx=g.edges.findIndex(e=>(e.a===a&&e.b===b)||(e.a===b&&e.b===a));if(idx>=0)g.edges.splice(idx,1);else g.edges.push({a,b});}
+function toggleEdge(a,b){
+  const g=M.gnss;
+  const idx=g.edges.findIndex(e=>(e.a===a&&e.b===b)||(e.a===b&&e.b===a));
+  if(idx>=0){
+    g.edges.splice(idx,1);
+    g.triangles=g.triangles.filter(t=>!(t.pts.includes(a)&&t.pts.includes(b)));
+  }else g.edges.push({a,b});
+}
 function repositionAll(){
   M.gnss.pts.forEach(p=>p.marker.setLatLng(displayLL(p.wgs)));M.gnss.impGhosts.forEach(g=>g.marker.setLatLng(displayLL(g.wgs)));
   M.trav.routes.forEach(route=>{route.pts.forEach(p=>p.marker.setLatLng(displayLL(p.wgs)));});
@@ -197,9 +409,45 @@ function repositionAll(){
   M.trav.ghosts.forEach(g=>{if(g._wgs)g.setLatLng(displayLL(g._wgs));});
   if(typeof repositionGPSMarker==='function')repositionGPSMarker();
 }
-function noteIcon(n){return L.divIcon({className:``,html:`<div class="note-pin"><svg width="20" height="28" viewBox="0 0 20 28"><path d="M10 0C4.5 0 0 4.5 0 10c0 7.5 10 18 10 18s10-10.5 10-18C20 4.5 15.5 0 10 0z" fill="#ffb454" stroke="#fff" stroke-width="1.5"/><circle cx="10" cy="10" r="4" fill="#fff"/></svg>`+(n.text?`<span class="note-text">`+n.text+`</span>`:``)+`</div>`,iconSize:[0,0],iconAnchor:[0,0]});}
-function makeNoteMarker(n){const mk=L.marker(displayLL(n.wgs),{draggable:true,icon:noteIcon(n)});mk.on(`dragstart`,()=>{_dragging=true;pushUndo();});mk.on(`drag`,()=>{n.wgs=trueLL(mk.getLatLng());});mk.on(`dragend`,()=>{_dragging=false;});function showNotePopup(e){if(e){L.DomEvent.stopPropagation(e);L.DomEvent.preventDefault(e);}const div=document.createElement(`div`);div.style.textAlign=`center`;const inp=document.createElement(`input`);inp.type=`text`;inp.value=n.text||``;inp.placeholder=`备注文字（可选）`;inp.style.cssText=`width:100%;padding:4px 8px;border:1px solid var(--line);border-radius:4px;background:var(--panel2);color:var(--text);font-size:13px;text-align:center;margin-bottom:6px;`;inp.onkeydown=ev=>{if(ev.key===`Enter`){ev.preventDefault();n.text=inp.value.trim();mk.setIcon(noteIcon(n));map.closePopup();}};div.appendChild(inp);const db=document.createElement(`button`);db.className=`del-popup-btn`;db.textContent=`删除图记`;db.onclick=()=>{map.closePopup();pushUndo();map.removeLayer(mk);M.notes=M.notes.filter(x=>x!==n);};div.appendChild(db);L.popup({offset:[0,-12]}).setLatLng(mk.getLatLng()).setContent(div).openOn(map);setTimeout(()=>{inp.focus();inp.select();},100);}mk.on(`contextmenu`,showNotePopup);let _lp=null;mk.on(`touchstart`,()=>{_lp=setTimeout(()=>{_lp=null;showNotePopup();},600);});mk.on(`touchend`,()=>{if(_lp){clearTimeout(_lp);_lp=null;}});mk.on(`touchmove`,()=>{if(_lp){clearTimeout(_lp);_lp=null;}});mk.bindTooltip(`右键编辑`,{direction:`top`,offset:[0,-28]});return mk;}
-map.on(`click`,e=>{if(_popupJustClosed)return;if(noteMode){pushUndo();const n={id:++uid,text:``,wgs:trueLL(e.latlng)};n.marker=makeNoteMarker(n);n.marker.addTo(map);M.notes.push(n);return;}if(calc.on)return;if(cur===`gnss`){if(M.gnss.sub!==`point`)return;addPoint(e.latlng);return;}addPoint(e.latlng);});
+function noteIcon(n){return L.divIcon({className:``,html:`<div class="note-pin`+((ctrlObj.active||n.dim)?` inactive`:``)+`"><svg width="20" height="28" viewBox="0 0 20 28"><path d="M10 0C4.5 0 0 4.5 0 10c0 7.5 10 18 10 18s10-10.5 10-18C20 4.5 15.5 0 10 0z" fill="#ffb454" stroke="#fff" stroke-width="1.5"/><circle cx="10" cy="10" r="4" fill="#fff"/></svg>`+(n.text?`<span class="note-text">`+n.text+`</span>`:``)+`</div>`,iconSize:[0,0],iconAnchor:[0,0]});}
+function makeNoteMarker(n){
+  const mk=L.marker(displayLL(n.wgs),{draggable:!n.dim,icon:noteIcon(n)});
+  mk.on(`dragstart`,()=>{if(ctrlObj.active||n.dim)return;_dragging=true;pushUndo();});
+  mk.on(`drag`,()=>{if(ctrlObj.active||n.dim)return;n.wgs=trueLL(mk.getLatLng());});
+  mk.on(`dragend`,()=>{if(ctrlObj.active||n.dim)return;_dragging=false;});
+  function showNotePopup(e){
+    if(e){L.DomEvent.stopPropagation(e);L.DomEvent.preventDefault(e);}
+    if(ctrlObj.active||n.dim)return;
+    const div=document.createElement(`div`);div.style.textAlign=`center`;
+    const originalText=n.text||``;
+    const inp=document.createElement(`input`);
+    inp.type=`text`;inp.value=originalText;inp.placeholder=`备注文字`;
+    inp.style.cssText=`width:100%;padding:4px 8px;border:1px solid var(--line);border-radius:4px;background:var(--panel2);color:var(--text);font-size:13px;text-align:center;margin-bottom:6px;`;
+    let skipCommit=false;
+    function commitNote(){if(skipCommit)return;const v=inp.value.trim();if(v!==originalText){pushUndo();n.text=v;mk.setIcon(noteIcon(n));refresh();}}
+    inp.onkeydown=ev=>{
+      if(ev.key===`Enter`){ev.preventDefault();commitNote();skipCommit=true;map.closePopup();}
+      else if(ev.key===`Escape`){ev.preventDefault();ev.stopPropagation();if(inp.value!==originalText)inp.value=originalText;else{skipCommit=true;map.closePopup();}}
+    };
+    div.appendChild(inp);
+    const db=document.createElement(`button`);db.className=`del-popup-btn`;db.textContent=`删除`;
+    db.onclick=()=>{skipCommit=true;map.closePopup();pushUndo();map.removeLayer(mk);M.notes=M.notes.filter(x=>x!==n);refresh();};
+    div.appendChild(db);
+    const dim=document.createElement(`button`);dim.className=`kind-popup-btn`;dim.textContent=`虚化`;
+    dim.onclick=()=>{skipCommit=true;pushUndo();n.text=inp.value.trim();n.dim=true;map.closePopup();refresh();toast(`图记已虚化`);};
+    div.appendChild(dim);
+    const pop=L.popup({offset:[0,-12]}).setLatLng(mk.getLatLng()).setContent(div).openOn(map);pop.on(`remove`,commitNote);
+  }
+  mk.on(`contextmenu`,showNotePopup);
+  let _lp=null;
+  mk.on(`touchstart`,()=>{if(ctrlObj.active||n.dim)return;_lp=setTimeout(()=>{_lp=null;showNotePopup();},600);});
+  mk.on(`touchend`,()=>{if(_lp){clearTimeout(_lp);_lp=null;}});
+  mk.on(`touchmove`,()=>{if(_lp){clearTimeout(_lp);_lp=null;}});
+  mk.bindTooltip(`右键编辑`,{direction:`top`,offset:[0,-28]});
+  return mk;
+}
+map.on(`mousemove`,e=>ctrlObjectUpdateSnap(e.latlng));
+map.on(`click`,e=>{if(_popupJustClosed)return;if(ctrlObj.active){ctrlObjectUseSnap();return;}if(noteMode){pushUndo();const n={id:++uid,text:``,wgs:trueLL(e.latlng)};n.marker=makeNoteMarker(n);n.marker.addTo(map);M.notes.push(n);refresh();return;}if(calc.on)return;if(cur===`gnss`){if(M.gnss.sub!==`point`)return;addPoint(e.latlng);return;}addPoint(e.latlng);});
 
 
 /* ===== 绘制与渲染 ===== */
@@ -228,9 +476,9 @@ function refresh(){
     M[mode].impGhosts.forEach(g=>{if(mode===cur){if(!map.hasLayer(g.marker))g.marker.addTo(map);}else if(map.hasLayer(g.marker))map.removeLayer(g.marker);});
   });
   clearLines(`gnss`);clearLines(`trav`);clearLines(`lev`);clearTriLayers();buildGhosts();
-  M.notes.forEach(n=>{if(!map.hasLayer(n.marker))n.marker.addTo(map);});
+  M.notes.forEach(n=>{n.marker.setIcon(noteIcon(n));if(n.marker.dragging){if(ctrlObj.active||n.dim)n.marker.dragging.disable();else n.marker.dragging.enable();}if(!map.hasLayer(n.marker))n.marker.addTo(map);});
   renderPtList();renderCalc();
+  if(typeof renderNoteList===`function`)renderNoteList();
   if(cur===`gnss`)refreshGnss();else if(cur===`trav`)refreshTrav();else refreshLev();
   updateUndoButtons();
 }
-
