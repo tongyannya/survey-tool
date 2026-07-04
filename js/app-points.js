@@ -2,14 +2,16 @@
 let _dragging=false;
 let noteMode=false;
 const ctrlObj={active:false,items:[],mode:null,suppress:false,snap:null,marker:null};
-const CTRL_SNAP_SHOW=24,CTRL_SNAP_HIT=16,EDGE_TOUCH_HIT=22;
+const CTRL_SNAP_SHOW=18,CTRL_SNAP_HIT=8,EDGE_TOUCH_HIT=22;
+function isMobileLayout(){return window.matchMedia&&window.matchMedia(`(max-width:760px)`).matches;}
+function edgeTouchEnabled(){return isMobileLayout()&&(ctrlObj.active||calc.on);}
 function ctrlObjectStatus(text){
   const el=document.getElementById(`ctrlObjectHint`);
   const label=el&&el.querySelector(`span`);
   if(label)label.textContent=text||`按住 Ctrl 选择对象`;
   if(el)el.classList.toggle(`active`,!!text);
-  const btn=document.getElementById(`mobileCtrlBtn`);
-  if(btn)btn.classList.toggle(`active`,!!text);
+  const sw=document.getElementById(`mobileCtrlSwitch`);
+  if(sw)sw.checked=!!text;
 }
 function ctrlObjectPointSelected(p){return ctrlObj.active&&ctrlObj.items.some(x=>x.type===`point`&&x.point===p);}
 function ctrlObjectEdgeSelected(mode,route,segIdx,a,b){
@@ -234,7 +236,7 @@ async function chooseEdgeCandidate(hits){
   return shown[parseInt(r.action,10)]||null;
 }
 async function handleExpandedEdgeClick(latlng){
-  if(!(ctrlObj.active||calc.on))return false;
+  if(!edgeTouchEnabled())return false;
   const hits=edgeCandidatesAtLatLng(latlng,EDGE_TOUCH_HIT);
   if(!hits.length)return false;
   const picked=await chooseEdgeCandidate(hits);
@@ -369,7 +371,7 @@ function bindMarker(mode,p){
   p.marker.on(`touchstart`,()=>{_lpTimer=setTimeout(()=>{_lpTimer=null;showEditPopup();},600);});
   p.marker.on(`touchend`,()=>{if(_lpTimer){clearTimeout(_lpTimer);_lpTimer=null;}});
   p.marker.on(`touchmove`,()=>{if(_lpTimer){clearTimeout(_lpTimer);_lpTimer=null;}});
-  p.marker.bindTooltip(`右键编辑`,{direction:`top`,offset:[0,-10]});
+  if(!isMobileLayout())p.marker.bindTooltip(`右键编辑`,{direction:`top`,offset:[0,-10]});
 }
 function newPoint(mode,latlng,kind){const p={id:++uid,kind:kind||`new`,name:null,wgs:trueLL(latlng),sync:false,link:null};p.marker=L.marker(latlng,{draggable:true}).addTo(map);bindMarker(mode,p);return p;}
 async function addPoint(latlng){
@@ -498,7 +500,7 @@ function makeNoteMarker(n){
   mk.on(`touchstart`,()=>{if(ctrlObj.active||n.dim)return;_lp=setTimeout(()=>{_lp=null;showNotePopup();},600);});
   mk.on(`touchend`,()=>{if(_lp){clearTimeout(_lp);_lp=null;}});
   mk.on(`touchmove`,()=>{if(_lp){clearTimeout(_lp);_lp=null;}});
-  mk.bindTooltip(`右键编辑`,{direction:`top`,offset:[0,-28]});
+  if(!isMobileLayout())mk.bindTooltip(`右键编辑`,{direction:`top`,offset:[0,-28]});
   return mk;
 }
 map.on(`mousemove`,e=>ctrlObjectUpdateSnap(e.latlng));
@@ -536,7 +538,7 @@ function drawSeg(mode,A,B,opts){
     pl.addTo(map);M[mode].lines.push(pl);
   }
   if(opts.onClick)pl.on(`click`,ev=>{L.DomEvent.stopPropagation(ev);opts.onClick(ev);});
-  if(opts.onClick&&(ctrlObj.active||calc.on)){
+  if(opts.onClick&&edgeTouchEnabled()){
     const hit=L.polyline([A,B],{color:`#ffffff`,weight:EDGE_TOUCH_HIT*2,opacity:0,interactive:true});
     hit.addTo(map);
     hit.on(`click`,async ev=>{L.DomEvent.stopPropagation(ev);await handleExpandedEdgeClick(ev.latlng);});
