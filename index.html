@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>控制测量设计器 · GNSS网 / 导线 / 水准</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="style.css?v=20260704i">
+<link rel="stylesheet" href="style.css?v=20260704k">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <header>
-  <h1>控制测量设计器<i class="help-dot" data-help="overview" title="使用说明">?</i></h1>
+  <h1><button id="announcementBadge" class="title-badge" title="开发日志 / 通知">◇</button><span class="title-text">控制测量设计器</span><i class="help-dot" data-help="overview" title="使用说明">?</i></h1>
   <div class="toolbar">
     <button id="undoBtn" class="tb-icon" title="撤销"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2.1-7L1 10"/></svg></button>
     <button id="redoBtn" class="tb-icon" title="恢复"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.1-7L23 10"/></svg></button>
@@ -119,17 +119,25 @@
 <div id="toast"></div>
 <div id="helpPop"></div>
 
-<div id="intro"><div class="modal">
-  <h3>使用须知</h3>
-  <div id="introBody">
-      <p>这是一个针对南京林业大学测绘工程专业下蜀林场实习的控制网设计小工具，但理论上应该在很多场景下都有用</p>
-      <p>实际上是主包玩嗨了不想干活整出来的。诚挚地感谢小组成员对主包上班不工作的纵容，是他们的勤奋使这玩意成为可能</p>
-      <p>Claude AI生成，除了部分文本撰写以外没有任何人类含量。界面设计来自Fable 5，为我们死去的贡献者默哀</p>
-      <p>本质是图一乐的产物，且因为主包代码水平为零，无法提供任何技术支持</p>
-      <p>但总之，玩的开心:-D</p>
-      <p>于2026/6/16，18:58</p>
+<div id="intro"><div class="modal announcement-modal">
+  <div class="announcement-head">
+    <div>
+      <h3 id="introHeading">作者的话</h3>
+    </div>
+    <button id="introClose" class="modal-close" title="关闭">×</button>
   </div>
-  <div class="modal-actions"><button id="introClose" class="go">关闭</button></div>
+  <div class="announcement-main">
+    <div id="announcementList" class="announcement-list"></div>
+    <div id="introBody" class="announcement-body"></div>
+  </div>
+  <div class="announcement-foot">
+    <label id="introDismissWrap" class="announcement-dismiss"><input id="introDismiss" type="checkbox"><span>不再自动显示这条通知</span></label>
+    <div class="announcement-nav">
+      <button id="introPrev">上一页</button>
+      <span id="introCount"></span>
+      <button id="introNext">下一页</button>
+    </div>
+  </div>
 </div></div>
 
 <div id="imp"><div class="modal">
@@ -155,6 +163,7 @@
 <script src="js/app-import.js?v=20260704i"></script>
 <script src="js/app-gps.js?v=20260704i"></script>
 <script src="js/help-text.js?v=20260704i"></script>
-<script src="js/app-ui.js?v=20260704i"></script>
+<script src="js/announcements.js?v=20260705a"></script>
+<script src="js/app-ui.js?v=20260704k"></script>
 </body>
 </html>
