@@ -11,9 +11,20 @@ const satLabel=L.tileLayer(`https://webst0{s}.is.autonavi.com/appmaptile?style=8
 const streetLayer=L.tileLayer(`https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`,{maxNativeZoom:19,maxZoom:20,...PRE});
 let currentBase=`sat`;satLayer.addTo(map);satLabel.addTo(map);
 const XIASHU={lat:32.1238,lng:119.2129};
-const btnSat=document.getElementById(`btnSat`),btnStreet=document.getElementById(`btnStreet`);
-function switchBase(to){if(to===`sat`){map.removeLayer(streetLayer);satLayer.addTo(map);satLabel.addTo(map);btnSat.classList.add(`active`);btnStreet.classList.remove(`active`);}else{map.removeLayer(satLayer);map.removeLayer(satLabel);streetLayer.addTo(map);btnStreet.classList.add(`active`);btnSat.classList.remove(`active`);}currentBase=to;repositionAll();refresh();updateDatumNote();}
+const btnSat=document.getElementById(`btnSat`),btnStreet=document.getElementById(`btnStreet`),mobileBaseToggle=document.getElementById(`mobileBaseToggle`);
+function updateBaseButtons(){
+  btnSat.classList.toggle(`active`,currentBase===`sat`);
+  btnStreet.classList.toggle(`active`,currentBase===`street`);
+  if(mobileBaseToggle)mobileBaseToggle.textContent=currentBase===`sat`?`卫`:`街`;
+}
+function switchBase(to){
+  if(to===`sat`){map.removeLayer(streetLayer);satLayer.addTo(map);satLabel.addTo(map);}
+  else{map.removeLayer(satLayer);map.removeLayer(satLabel);streetLayer.addTo(map);}
+  currentBase=to;updateBaseButtons();repositionAll();refresh();updateDatumNote();
+}
 btnSat.onclick=()=>switchBase(`sat`);btnStreet.onclick=()=>switchBase(`street`);
+if(mobileBaseToggle)mobileBaseToggle.onclick=()=>switchBase(currentBase===`sat`?`street`:`sat`);
+updateBaseButtons();
 const searchResults=document.getElementById(`searchResults`);
 function closeSearch(){searchResults.innerHTML=``;searchResults.classList.remove(`open`);}
 async function doSearch(){const q=document.getElementById(`searchInput`).value.trim();if(!q)return;closeSearch();try{const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=cn&q=`+encodeURIComponent(q));const j=await r.json();if(!j.length){toast(`未找到该地名`);return;}if(j.length===1){map.setView([+j[0].lat,+j[0].lon],15);return;}searchResults.innerHTML=``;j.forEach(item=>{const d=document.createElement(`div`);d.className=`sr-item`;d.textContent=item.display_name;d.onclick=()=>{map.setView([+item.lat,+item.lon],15);closeSearch();};searchResults.appendChild(d);});searchResults.classList.add(`open`);}catch(e){toast(`搜索服务暂不可用`);}}

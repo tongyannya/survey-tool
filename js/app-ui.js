@@ -36,7 +36,8 @@ function toggleFloat(name){floatOpen=floatOpen===name?null:name;if(isMobileLayou
 document.querySelectorAll('.float-close').forEach(b=>{b.onclick=()=>{floatOpen=null;document.querySelectorAll('.float-popup').forEach(p=>p.classList.remove('open'));hideHelp();};});
 document.addEventListener(`mousedown`,e=>{
   let _dismissed=false;
-  if(floatOpen===`scheme`&&!e.target.closest(`#schemeFloat,#fabContainer`)){floatOpen=null;document.getElementById(`schemeFloat`).classList.remove(`open`);hideHelp();_dismissed=true;}
+  if(floatOpen&&!e.target.closest(`#${floatOpen}Float,#fabContainer`)){floatOpen=null;document.querySelectorAll(`.float-popup`).forEach(p=>p.classList.remove(`open`));hideHelp();_dismissed=true;}
+  if(typeof helpPop!==`undefined`&&helpPop&&helpPop.classList.contains(`show`)&&!e.target.closest(`#helpPop,.help-dot`)){hideHelp();_dismissed=true;}
   if(!e.target.closest(`.leaflet-popup,.leaflet-marker-icon,.leaflet-div-icon`)){if(map&&map._popup&&map.hasLayer(map._popup)){_dismissed=true;map.closePopup();}}
   if(_dismissed){_popupJustClosed=true;setTimeout(()=>{_popupJustClosed=false;},350);}
 });
