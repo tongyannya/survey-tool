@@ -8,13 +8,10 @@ function refreshGnss(){
   if(g.pts.length<3){box.innerHTML=`<div class="note">布点后自动计算。</div>`;return;}
   const st=gnssStats(),kc=kindCounts(g.pts),min=lens.length?Math.min(...lens):0,max=lens.length?Math.max(...lens):0;
   let html=`<div class="summary"><div class="stat"><div class="k">点数(已知/待测)</div><div class="v">`+kc.known+` / `+kc.nw+`</div></div><div class="stat"><div class="k">基线数</div><div class="v">`+g.edges.length+`</div></div><div class="stat"><div class="k">三角形(自动)</div><div class="v">`+st.tri+`</div></div><div class="stat"><div class="k">已编号三角网</div><div class="v">`+g.triangles.length+`</div></div><div class="stat"><div class="k">最短边</div><div class="v">`+(min?min.toFixed(0):`—`)+` m</div></div><div class="stat"><div class="k">最长边</div><div class="v">`+(max?max.toFixed(0):`—`)+` m</div></div></div>`;
-  if(g.triangles.length){html+=`<div class="sub-h">三角网 / 同步图形</div><div id="triList"></div>`;}
   if(g.edges.length){html+=`<div class="sub-h">基线边长（限 ≥ `+g.minEdge+` m）</div>`;g.edges.forEach(e=>{const d=vincenty(e.a.wgs,e.b.wgs),ok=d>=g.minEdge;html+=`<div class="row `+(ok?`ok`:`bad`)+`"><span class="lab">`+label(`gnss`,g.pts.indexOf(e.a))+`–`+label(`gnss`,g.pts.indexOf(e.b))+`</span><span class="val">`+d.toFixed(1)+` m</span><span class="mk">`+(ok?SVG_OK:SVG_FAIL)+`</span></div>`;});}
   const shortN=lens.filter(d=>d<g.minEdge).length;let vc,vt;
   if(st.comp>1){vc=`verdict fail`;vt=SVG_FAIL+` 网形未连通（`+st.comp+` 个独立部分）`;}else if(st.tri===0){vc=`verdict fail`;vt=SVG_FAIL+` 尚未构成闭合三角形`;}else if(shortN){vc=`verdict fail`;vt=SVG_FAIL+` 有 `+shortN+` 条基线 < `+g.minEdge+` m`;}else if(kc.known===0){vc=`verdict`;vt=SVG_WARN_ICON+` 网中尚无已知点（平差需 ≥1 起算点）`;}else{vc=`verdict pass`;vt=SVG_OK+` 连通、含 `+st.tri+` 个三角形、`+kc.known+` 个起算点`;}
   box.innerHTML=html+`<div class="`+vc+`">`+vt+`</div>`;
-  const tl=document.getElementById(`triList`);
-  if(tl){g.triangles.forEach((t,k)=>{const row=document.createElement(`div`);row.className=`tri-row`;row.innerHTML=`<span class="no">`+circ(k+1)+`</span><span class="vx">`+t.pts.map(p=>label(`gnss`,g.pts.indexOf(p))).join(`-`)+`</span><span class="pm">周长 `+triPerimeter(t).toFixed(0)+`m</span>`;const inp=document.createElement(`input`);inp.placeholder=`时段/备注`;inp.value=t.note||``;inp.onchange=()=>{t.note=inp.value;};const del=document.createElement(`button`);del.className=`ic del`;del.textContent=`删`;del.onclick=()=>removeTriangle(t);row.appendChild(inp);row.appendChild(del);tl.appendChild(row);});}
 }
 
 /* ===== 导线模式分析 ===== */

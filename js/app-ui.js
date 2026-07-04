@@ -80,12 +80,7 @@ function buildParams(){
   const box=document.getElementById(`paramBox`);
   document.getElementById(`modeTitleText`).textContent={gnss:`GNSS 控制网 · 三角网`,trav:`导线 · 附合/闭合`,lev:`水准路线 · 二等往返`}[cur];
   if(cur===`gnss`){
-    box.innerHTML=`<div class="btn-row"><button id="subPoint">加点</button><button id="subEdge">连边</button><button id="subTri">选三角</button><button id="autoTri">自动生成三角网</button></div><div class="param" style="margin-top:10px;"><span>最短基线限值 (m)</span><input id="pMinEdge" type="number" value="`+M.gnss.minEdge+`"></div>`;
-    subActive(`sub`+(M.gnss.sub===`edge`?`Edge`:M.gnss.sub===`tri`?`Tri`:`Point`));
-    document.getElementById(`subPoint`).onclick=()=>{M.gnss.sub=`point`;M.gnss.sel=null;M.gnss.triSel=[];refreshIcons(`gnss`);subActive(`subPoint`);};
-    document.getElementById(`subEdge`).onclick=()=>{M.gnss.sub=`edge`;M.gnss.triSel=[];refreshIcons(`gnss`);subActive(`subEdge`);toast(`连边：依次点两个点`);};
-    document.getElementById(`subTri`).onclick=()=>{M.gnss.sub=`tri`;M.gnss.sel=null;refreshIcons(`gnss`);subActive(`subTri`);toast(`选三角：依次点三个点`);};
-    document.getElementById(`autoTri`).onclick=autoTriangulate;
+    box.innerHTML=`<div class="param"><span>最短基线限值 (m)</span><input id="pMinEdge" type="number" value="`+M.gnss.minEdge+`"></div>`;
     document.getElementById(`pMinEdge`).onchange=e=>{M.gnss.minEdge=+e.target.value||0;refresh();};
   }else if(cur===`trav`){
     box.innerHTML=`<div class="param"><span>相邻边长比上限 1:</span><input id="pRatio" type="number" value="`+M.trav.maxRatio+`"></div><div class="param"><span>转折角提示下限 (°)</span><input id="pAng" type="number" value="`+M.trav.minAng+`"></div><div class="param"><span>导线全长上限 (m)</span><input id="pTot" type="number" value="`+M.trav.totLen+`"></div>`;
@@ -246,8 +241,8 @@ function closeTransientUI(){
 }
 document.addEventListener(`keydown`,e=>{
   const k=e.key.toLowerCase();
-  if(e.key===`Control`){if(typeof ctrlObjectBegin===`function`)ctrlObjectBegin();return;}
   if(isTextEditing())return;
+  if(e.key===`Control`){if(typeof ctrlObjectBegin===`function`)ctrlObjectBegin();return;}
   if(k===`1`||k===`2`||k===`3`){e.preventDefault();switchMode({1:`gnss`,2:`trav`,3:`lev`}[k]);return;}
   if(e.key===`Delete`){e.preventDefault();deleteSelectedPts();return;}
   if(e.key===`Escape`){e.preventDefault();closeTransientUI();return;}
@@ -258,6 +253,29 @@ document.addEventListener(`keyup`,e=>{if(e.key===`Control`&&typeof ctrlObjectCom
 function releaseCtrlObject(){if(typeof ctrlObjectCancel===`function`)ctrlObjectCancel();}
 window.addEventListener(`blur`,releaseCtrlObject);
 document.addEventListener(`visibilitychange`,()=>{if(document.hidden)releaseCtrlObject();});
+function bindMobileCtrlButton(){
+  const btn=document.getElementById(`mobileCtrlBtn`);
+  if(!btn)return;
+  let down=false,pointerId=null;
+  function start(e){
+    e.preventDefault();e.stopPropagation();
+    if(down)return;
+    down=true;pointerId=e.pointerId;
+    if(typeof ctrlObjectBegin===`function`)ctrlObjectBegin();
+  }
+  function end(e){
+    if(!down)return;
+    if(e&&pointerId!==null&&e.pointerId!==pointerId)return;
+    if(e){e.preventDefault();e.stopPropagation();}
+    down=false;pointerId=null;
+    if(typeof ctrlObjectCommit===`function`)ctrlObjectCommit();
+  }
+  btn.addEventListener(`pointerdown`,start);
+  document.addEventListener(`pointerup`,end);
+  document.addEventListener(`pointercancel`,end);
+  btn.addEventListener(`contextmenu`,e=>e.preventDefault());
+}
+bindMobileCtrlButton();
 
 /* ===== 方案管理 ===== */
 const LSKEY=`cs_schemes_v1`;let schemes={},lsOK=true;

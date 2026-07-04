@@ -27,18 +27,94 @@ function startRename(mode,p,el){
 function movePoint(mode,i,dir){const pts=M[mode].pts,j=i+dir;if(j<0||j>=pts.length)return;pushUndo();[pts[i],pts[j]]=[pts[j],pts[i]];refresh();}
 function updateSelUI(){document.querySelectorAll(`.pt-row`).forEach(r=>{const idx=parseInt(r.dataset.idx);const p=M[cur].pts[idx];if(p)r.classList.toggle(`selected`,selectedPtIds.has(p.id));});const sc=document.getElementById(`selCount`);if(sc)sc.textContent=selectedPtIds.size?`已选 `+selectedPtIds.size+` 个`:``;}
 
+function clearGnssEdges(){
+  const g=M.gnss;
+  if(!g.edges.length&&!g.triangles.length){toast(`当前没有基线或三角网`);return;}
+  pushUndo();
+  g.edges=[];g.triangles=[];g.sel=null;g.triSel=[];
+  refresh();
+  toast(`已清空 GNSS 基线和三角网`);
+}
+function clearGnssTriangles(){
+  const g=M.gnss;
+  if(!g.triangles.length){toast(`当前没有三角网`);return;}
+  pushUndo();
+  g.triangles=[];g.triSel=[];
+  refresh();
+  toast(`已清空三角网，基线已保留`);
+}
+function renderGnssDesignTools(box){
+  const wrap=document.createElement(`div`);
+  wrap.className=`gnss-design-tools`;
+  wrap.innerHTML=`<div class="btn-row" style="margin-top:0"><button id="subPoint">加点</button><button id="subEdge">连边</button><button id="subTri">选三角</button><button id="autoTri">自动生成三角网</button><button id="clearGnssEdges" class="danger-lite">清空边</button></div>`;
+  box.appendChild(wrap);
+  subActive(`sub`+(M.gnss.sub===`edge`?`Edge`:M.gnss.sub===`tri`?`Tri`:`Point`));
+  document.getElementById(`subPoint`).onclick=()=>{M.gnss.sub=`point`;M.gnss.sel=null;M.gnss.triSel=[];refreshIcons(`gnss`);subActive(`subPoint`);};
+  document.getElementById(`subEdge`).onclick=()=>{M.gnss.sub=`edge`;M.gnss.triSel=[];refreshIcons(`gnss`);subActive(`subEdge`);toast(`连边：依次点两个点`);};
+  document.getElementById(`subTri`).onclick=()=>{M.gnss.sub=`tri`;M.gnss.sel=null;refreshIcons(`gnss`);subActive(`subTri`);toast(`选三角：依次点三个点`);};
+  document.getElementById(`autoTri`).onclick=autoTriangulate;
+  document.getElementById(`clearGnssEdges`).onclick=clearGnssEdges;
+}
+function renderGnssTriangleList(box){
+  const g=M.gnss;
+  const sec=document.createElement(`div`);
+  sec.className=`gnss-tri-section`;
+  const h=document.createElement(`div`);
+  h.className=`sub-h`;
+  const hText=document.createElement(`span`);
+  hText.textContent=`三角网 / 同步图形`;
+  h.appendChild(hText);
+  const clearBtn=document.createElement(`button`);
+  clearBtn.className=`tri-clear-btn`;
+  clearBtn.title=`清空全部三角网（保留基线）`;
+  clearBtn.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>`;
+  clearBtn.onclick=clearGnssTriangles;
+  h.appendChild(clearBtn);
+  sec.appendChild(h);
+  const list=document.createElement(`div`);
+  list.id=`triList`;
+  sec.appendChild(list);
+  if(!g.triangles.length){
+    const empty=document.createElement(`div`);
+    empty.className=`note`;
+    empty.textContent=`暂无已编号三角网。可用“选三角”或 Ctrl 对象选择生成。`;
+    list.appendChild(empty);
+  }else{
+    g.triangles.forEach((t,k)=>{
+      const row=document.createElement(`div`);
+      row.className=`tri-row`;
+      row.innerHTML=`<span class="no">`+circ(k+1)+`</span><span class="vx">`+t.pts.map(p=>label(`gnss`,g.pts.indexOf(p))).join(`-`)+`</span><span class="pm">周长 `+triPerimeter(t).toFixed(0)+`m</span>`;
+      const inp=document.createElement(`input`);
+      inp.placeholder=`时段/备注`;
+      inp.value=t.note||``;
+      inp.onchange=()=>{t.note=inp.value;};
+      const del=document.createElement(`button`);
+      del.className=`ic del`;
+      del.textContent=`删`;
+      del.onclick=()=>removeTriangle(t);
+      row.appendChild(inp);row.appendChild(del);list.appendChild(row);
+    });
+  }
+  box.appendChild(sec);
+}
 function renderPtList(){
   const mode=cur,box=document.getElementById(`ptList`);
+  const body=box.parentElement;
   const bs=document.getElementById(`batchSection`);
   const impBtnRow=document.getElementById(`impBtn`).parentElement;
+  const fileIn=document.getElementById(`fileIn`);
+  const legend=document.querySelector(`.legend`);
+  if(impBtnRow&&impBtnRow.parentElement!==body)body.insertBefore(impBtnRow,fileIn);
+  if(legend&&legend.parentElement!==body)body.appendChild(legend);
   if(bs&&bs.parentElement)bs.remove();
   if(mode===`trav`||mode===`lev`){impBtnRow.style.display=`none`;renderRouteList(box,mode,bs);return;}
-  impBtnRow.style.display=``;
-  if(bs){bs.style.display=``;box.parentElement.insertBefore(bs,impBtnRow);}
   const M0=M[mode],kc=kindCounts(M0.pts);
   document.getElementById(`ptTitleText`).textContent=`控制点（已知 `+kc.known+` · 待测 `+kc.nw+`）`;
-  if(M0.pts.length===0){box.innerHTML=``;return;}
   box.innerHTML=``;
+  renderGnssDesignTools(box);
+  impBtnRow.style.display=``;
+  box.appendChild(impBtnRow);
+  if(bs){bs.style.display=``;box.appendChild(bs);}
   M0.pts.forEach((p,i)=>{
     const w=p.wgs,term=isTerminal(mode,i)?(i===0?`·起`:`·终`):``;
     const row=document.createElement(`div`);row.className=`pt-row`+(selectedPtIds.has(p.id)?` selected`:``);row.dataset.idx=i;row.addEventListener(`click`,e=>{if(e.target.closest(`.ic,.drag-handle,.nameinput,b`))return;if(e.ctrlKey||e.metaKey){if(selectedPtIds.has(p.id))selectedPtIds.delete(p.id);else selectedPtIds.add(p.id);}else{if(selectedPtIds.has(p.id)&&selectedPtIds.size===1)selectedPtIds.clear();else{selectedPtIds.clear();selectedPtIds.add(p.id);}}updateSelUI();});
@@ -55,6 +131,8 @@ function renderPtList(){
     if(M0.pts.length>1){const handle=document.createElement(`span`);handle.className=`drag-handle`;handle.textContent=`⠿`;row.insertBefore(handle,row.firstChild);row.draggable=true;row.ondragstart=e=>{e.dataTransfer.effectAllowed=`move`;setTimeout(()=>row.classList.add(`dragging`),0);box._dragFrom=i;};row.ondragend=()=>{row.classList.remove(`dragging`);box.querySelectorAll(`.pt-row`).forEach(r=>r.classList.remove(`drag-above`,`drag-below`));delete box._dragFrom;};row.ondragover=e=>{e.preventDefault();if(box._dragFrom===undefined||box._dragFrom===i)return;box.querySelectorAll(`.pt-row`).forEach(r=>r.classList.remove(`drag-above`,`drag-below`));const rect=row.getBoundingClientRect();row.classList.add(e.clientY>rect.top+rect.height/2?`drag-below`:`drag-above`);};row.ondrop=e=>{e.preventDefault();const from=box._dragFrom;if(from===undefined)return;let to=i;if(e.clientY>row.getBoundingClientRect().top+row.getBoundingClientRect().height/2)to++;if(from<to)to--;if(from!==to){pushUndo();const[pt]=M0.pts.splice(from,1);M0.pts.splice(to,0,pt);refresh();}};}
     box.appendChild(row);
   });
+  renderGnssTriangleList(box);
+  if(legend)box.appendChild(legend);
   const sc=document.getElementById(`selCount`);if(sc)sc.textContent=selectedPtIds.size?`已选 `+selectedPtIds.size+` 个`:``;
 }
 

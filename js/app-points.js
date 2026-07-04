@@ -2,11 +2,14 @@
 let _dragging=false;
 let noteMode=false;
 const ctrlObj={active:false,items:[],mode:null,suppress:false,snap:null,marker:null};
-const CTRL_SNAP_SHOW=18,CTRL_SNAP_HIT=8;
+const CTRL_SNAP_SHOW=24,CTRL_SNAP_HIT=16,EDGE_TOUCH_HIT=22;
 function ctrlObjectStatus(text){
   const el=document.getElementById(`ctrlObjectHint`);
   const label=el&&el.querySelector(`span`);
   if(label)label.textContent=text||`按住 Ctrl 选择对象`;
+  if(el)el.classList.toggle(`active`,!!text);
+  const btn=document.getElementById(`mobileCtrlBtn`);
+  if(btn)btn.classList.toggle(`active`,!!text);
 }
 function ctrlObjectPointSelected(p){return ctrlObj.active&&ctrlObj.items.some(x=>x.type===`point`&&x.point===p);}
 function ctrlObjectEdgeSelected(mode,route,segIdx,a,b){
@@ -60,6 +63,15 @@ function ctrlObjectAddEdge(mode,route,segIdx,a,b){
   ctrlObjectStatus(`已选 `+ctrlObj.items.length+` 个对象`);
   refresh();
   return true;
+}
+function edgeLabel(e){
+  if(e.mode===`gnss`)return `GNSS 基线 `+label(`gnss`,M.gnss.pts.indexOf(e.a))+`-`+label(`gnss`,M.gnss.pts.indexOf(e.b));
+  const saved=M[e.mode].activeRouteId;
+  if(e.route)M[e.mode].activeRouteId=e.route.id;
+  const ia=e.route?e.route.pts.indexOf(e.a):-1,ib=e.route?e.route.pts.indexOf(e.b):-1;
+  const text=ROUTE_LABEL[e.mode]+` `+(e.route?e.route.name+` · `:``)+label(e.mode,ia)+`-`+label(e.mode,ib);
+  M[e.mode].activeRouteId=saved;
+  return text;
 }
 function samePointSet(a,b){
   if(a.length!==b.length)return false;
@@ -144,6 +156,17 @@ function ctrlObjectEdges(){
   }
   return edges;
 }
+function edgeCandidatesAtLatLng(latlng,radius){
+  const p=map.latLngToLayerPoint(latlng),hits=[];
+  ctrlObjectEdges().forEach(e=>{
+    if(!map.hasLayer(e.a.marker)||!map.hasLayer(e.b.marker))return;
+    const A=map.latLngToLayerPoint(e.a.marker.getLatLng()),B=map.latLngToLayerPoint(e.b.marker.getLatLng());
+    const pr=projectPointToSegment(p,A,B);
+    if(pr.d<=radius)hits.push({...e,d:pr.d,latlng:map.layerPointToLatLng(L.point(pr.x,pr.y))});
+  });
+  hits.sort((a,b)=>a.d-b.d);
+  return hits;
+}
 function ctrlObjectUpdateSnap(latlng){
   if(!ctrlObj.active||ctrlObj.mode!==cur){ctrlObjectHideSnap();return;}
   const p=map.latLngToLayerPoint(latlng);
@@ -152,14 +175,8 @@ function ctrlObjectUpdateSnap(latlng){
     return pts.some(pt=>map.hasLayer(pt.marker)&&p.distanceTo(map.latLngToLayerPoint(pt.marker.getLatLng()))<=16);
   })();
   if(nearPoint){ctrlObjectHideSnap();return;}
-  let best=null;
-  ctrlObjectEdges().forEach(e=>{
-    const A=map.latLngToLayerPoint(e.a.marker.getLatLng()),B=map.latLngToLayerPoint(e.b.marker.getLatLng());
-    const pr=projectPointToSegment(p,A,B);
-    if(pr.d<=CTRL_SNAP_SHOW&&(!best||pr.d<best.d)){
-      best={...e,d:pr.d,latlng:map.layerPointToLatLng(L.point(pr.x,pr.y)),hit:pr.d<=CTRL_SNAP_HIT};
-    }
-  });
+  const best=edgeCandidatesAtLatLng(latlng,CTRL_SNAP_SHOW)[0]||null;
+  if(best)best.hit=best.d<=CTRL_SNAP_HIT;
   if(!best){ctrlObjectHideSnap();return;}
   ctrlObj.snap=best;
   const html=`<div class="ctrl-snap-marker`+(best.hit?` hit`:``)+`"></div>`;
@@ -185,6 +202,44 @@ function ctrlObjectUseSnap(){
     return true;
   }
   return false;
+}
+function useEdgeCandidate(s){
+  if(!s)return false;
+  if(ctrlObj.active){
+    if(s.mode===`gnss`)return ctrlObjectAddEdge(`gnss`,null,null,s.a,s.b);
+    ctrlObj.suppress=true;
+    const ev={latlng:s.latlng};
+    if(calc.on){toggleCalc(s.mode,s.a.id,s.b.id);return true;}
+    if(s.mode===`trav`){showSegPopup(`trav`,s.segIdx,ev,s.route);return true;}
+    if(s.mode===`lev`){
+      if(s.a.knownEdgeAfter){toast(`水准已知边不可编辑`);return true;}
+      if(s.route.linkedRouteId)showTurnPopup(s.route,s.segIdx,ev);
+      else showSegPopup(`lev`,s.segIdx,ev,s.route);
+      return true;
+    }
+  }else if(calc.on){
+    toggleCalc(s.mode,s.a.id,s.b.id);
+    return true;
+  }
+  return false;
+}
+async function chooseEdgeCandidate(hits){
+  if(!hits.length)return null;
+  if(hits.length===1)return hits[0];
+  const shown=hits.slice(0,5);
+  const rows=shown.map((h,i)=>`<div class="row"><span class="lab">`+(i+1)+`. `+edgeLabel(h)+`</span><span class="val">距触点 `+h.d.toFixed(0)+` px</span></div>`).join(``);
+  const buttons=[{text:`取消`,value:`cancel`}].concat(shown.map((h,i)=>({text:String(i+1),value:String(i),cls:i===0?`go`:``})));
+  const r=await showConfirm(`选择要操作的边`,`<p class="note" style="margin-top:0">点击范围内有多个要素，请选择一个。</p>`+rows,buttons);
+  if(!r||r.action===`cancel`)return null;
+  return shown[parseInt(r.action,10)]||null;
+}
+async function handleExpandedEdgeClick(latlng){
+  if(!(ctrlObj.active||calc.on))return false;
+  const hits=edgeCandidatesAtLatLng(latlng,EDGE_TOUCH_HIT);
+  if(!hits.length)return false;
+  const picked=await chooseEdgeCandidate(hits);
+  if(picked)useEdgeCandidate(picked);
+  return true;
 }
 function isTerminal(mode,i){
   if(mode===`trav`||mode===`lev`){const r=activeRouteOf(mode);if(!r||r.closed)return false;return i===0||i===r.pts.length-1;}
@@ -447,13 +502,52 @@ function makeNoteMarker(n){
   return mk;
 }
 map.on(`mousemove`,e=>ctrlObjectUpdateSnap(e.latlng));
-map.on(`click`,e=>{if(_popupJustClosed)return;if(ctrlObj.active){ctrlObjectUseSnap();return;}if(noteMode){pushUndo();const n={id:++uid,text:``,wgs:trueLL(e.latlng)};n.marker=makeNoteMarker(n);n.marker.addTo(map);M.notes.push(n);refresh();return;}if(calc.on)return;if(cur===`gnss`){if(M.gnss.sub!==`point`)return;addPoint(e.latlng);return;}addPoint(e.latlng);});
+map.on(`click`,async e=>{
+  if(_popupJustClosed)return;
+  if(ctrlObj.active){
+    if(await handleExpandedEdgeClick(e.latlng))return;
+    ctrlObjectUseSnap();
+    return;
+  }
+  if(calc.on){
+    await handleExpandedEdgeClick(e.latlng);
+    return;
+  }
+  if(noteMode){pushUndo();const n={id:++uid,text:``,wgs:trueLL(e.latlng)};n.marker=makeNoteMarker(n);n.marker.addTo(map);M.notes.push(n);refresh();return;}
+  if(cur===`gnss`){if(M.gnss.sub!==`point`)return;addPoint(e.latlng);return;}
+  addPoint(e.latlng);
+});
 
 
 /* ===== 绘制与渲染 ===== */
 function clearLines(mode){M[mode].lines.forEach(l=>map.removeLayer(l));M[mode].lines=[];}
 function clearTriLayers(){M.gnss.triLayers.forEach(l=>map.removeLayer(l));M.gnss.triLayers=[];}
-function drawSeg(mode,A,B,opts){opts=opts||{};const w=opts.weight||3;let pl;if(opts.knownEdge){const outer=L.polyline([A,B],{color:opts.color,weight:w+4,opacity:opts.opacity||.9,interactive:!!opts.onClick});outer.addTo(map);M[mode].lines.push(outer);const inner=L.polyline([A,B],{color:`#080c12`,weight:w,opacity:1,interactive:false});inner.addTo(map);M[mode].lines.push(inner);pl=outer;}else{pl=L.polyline([A,B],{color:opts.color,weight:w,dashArray:opts.dash||null,opacity:opts.opacity||.9,interactive:!!opts.onClick});pl.addTo(map);M[mode].lines.push(pl);}if(opts.onClick)pl.on(`click`,ev=>{L.DomEvent.stopPropagation(ev);opts.onClick(ev);});if(opts.dist!==undefined){const mid=L.latLng((A.lat+B.lat)/2,(A.lng+B.lng)/2);M[mode].lines.push(L.marker(mid,{icon:L.divIcon({className:``,html:`<div class="dist-label`+(opts.bad?` bad`:``)+`">`+opts.dist.toFixed(1)+` m</div>`,iconSize:[0,0]}),interactive:false}).addTo(map));}return pl;}
+function drawSeg(mode,A,B,opts){
+  opts=opts||{};
+  const w=opts.weight||3;
+  let pl;
+  if(opts.knownEdge){
+    const outer=L.polyline([A,B],{color:opts.color,weight:w+4,opacity:opts.opacity||.9,interactive:!!opts.onClick});
+    outer.addTo(map);M[mode].lines.push(outer);
+    const inner=L.polyline([A,B],{color:`#080c12`,weight:w,opacity:1,interactive:false});
+    inner.addTo(map);M[mode].lines.push(inner);pl=outer;
+  }else{
+    pl=L.polyline([A,B],{color:opts.color,weight:w,dashArray:opts.dash||null,opacity:opts.opacity||.9,interactive:!!opts.onClick});
+    pl.addTo(map);M[mode].lines.push(pl);
+  }
+  if(opts.onClick)pl.on(`click`,ev=>{L.DomEvent.stopPropagation(ev);opts.onClick(ev);});
+  if(opts.onClick&&(ctrlObj.active||calc.on)){
+    const hit=L.polyline([A,B],{color:`#ffffff`,weight:EDGE_TOUCH_HIT*2,opacity:0,interactive:true});
+    hit.addTo(map);
+    hit.on(`click`,async ev=>{L.DomEvent.stopPropagation(ev);await handleExpandedEdgeClick(ev.latlng);});
+    M[mode].lines.push(hit);
+  }
+  if(opts.dist!==undefined){
+    const mid=L.latLng((A.lat+B.lat)/2,(A.lng+B.lng)/2);
+    M[mode].lines.push(L.marker(mid,{icon:L.divIcon({className:``,html:`<div class="dist-label`+(opts.bad?` bad`:``)+`">`+opts.dist.toFixed(1)+` m</div>`,iconSize:[0,0]}),interactive:false}).addTo(map));
+  }
+  return pl;
+}
 function calcHas(key){return calc.set.some(x=>x.key===key);}
 function toggleCalc(mode,aId,bId){const key=keyOf(aId,bId);const idx=calc.set.findIndex(x=>x.key===key);if(idx>=0)calc.set.splice(idx,1);else calc.set.push({key,mode,aId,bId});refresh();}
 function calcSum(){let sum=0,n=0;const keep=[];calc.set.forEach(x=>{const a=pointById(x.mode,x.aId),b=pointById(x.mode,x.bId);if(a&&b&&x.mode===cur){sum+=vincenty(a.wgs,b.wgs);n++;keep.push(x);}else if(a&&b){keep.push(x);}});return {sum,n};}
