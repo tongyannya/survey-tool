@@ -37,8 +37,8 @@ document.querySelectorAll('.float-close').forEach(b=>{b.onclick=()=>{floatOpen=n
 document.addEventListener(`mousedown`,e=>{
   let _dismissed=false;
   if(floatOpen===`scheme`&&!e.target.closest(`#schemeFloat,#fabContainer`)){floatOpen=null;document.getElementById(`schemeFloat`).classList.remove(`open`);hideHelp();_dismissed=true;}
-  if(!e.target.closest(`.leaflet-popup,.leaflet-marker-icon,.leaflet-div-icon`)){if(map._popup)_dismissed=true;map.closePopup();}
-  if(_dismissed){_popupJustClosed=true;setTimeout(()=>{_popupJustClosed=false;},0);}
+  if(!e.target.closest(`.leaflet-popup,.leaflet-marker-icon,.leaflet-div-icon`)){if(map&&map._popup&&map.hasLayer(map._popup)){_dismissed=true;map.closePopup();}}
+  if(_dismissed){_popupJustClosed=true;setTimeout(()=>{_popupJustClosed=false;},350);}
 });
 
 /* ===== 工具手风琴 ===== */

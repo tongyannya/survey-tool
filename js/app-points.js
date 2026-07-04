@@ -505,7 +505,7 @@ function makeNoteMarker(n){
 }
 map.on(`mousemove`,e=>ctrlObjectUpdateSnap(e.latlng));
 map.on(`click`,async e=>{
-  if(_popupJustClosed)return;
+  if(_popupJustClosed){_popupJustClosed=false;return;}
   if(ctrlObj.active){
     if(await handleExpandedEdgeClick(e.latlng))return;
     ctrlObjectUseSnap();
