@@ -56,7 +56,7 @@ function ctrlObjectUpdateCommitMarker(){
   const ll=ctrlObjectItemLatLng(ctrlObj.items[ctrlObj.items.length-1]);
   if(!ll){ctrlObjectHideCommitMarker();return;}
   ctrlObj.commitLatLng=ll;
-  const icon=L.divIcon({className:``,html:`<div class="ctrl-commit-marker">✓</div>`,iconSize:[28,28],iconAnchor:[-9,31]});
+  const icon=L.divIcon({className:``,html:`<div class="ctrl-commit-marker">✓</div>`,iconSize:[18,18],iconAnchor:[-6,21]});
   if(!ctrlObj.commitMarker){
     ctrlObj.commitMarker=L.marker(ll,{icon,zIndexOffset:2400,interactive:true,bubblingMouseEvents:false}).addTo(map);
     ctrlObj.commitMarker.on(`click`,ev=>{if(ev)L.DomEvent.stopPropagation(ev);ctrlObjectCommitAndRestart();});
