@@ -1,7 +1,7 @@
 /* ===== 标记与交互 ===== */
 let _dragging=false;
 let noteMode=false;
-const ctrlObj={active:false,items:[],mode:null,suppress:false,snap:null,marker:null};
+const ctrlObj={active:false,items:[],mode:null,suppress:false,snap:null,marker:null,commitMarker:null,commitLatLng:null};
 const CTRL_SNAP_SHOW=18,CTRL_SNAP_HIT=8,EDGE_TOUCH_HIT=22;
 function isMobileLayout(){return window.matchMedia&&window.matchMedia(`(max-width:760px)`).matches;}
 function edgeTouchEnabled(){return isMobileLayout()&&(ctrlObj.active||calc.on);}
@@ -28,6 +28,7 @@ function ctrlObjectBegin(){
   if(map&&map._popup){map.closePopup(map._popup);document.querySelectorAll(`.leaflet-popup`).forEach(p=>p.remove());}
   if(typeof ctxMenu!==`undefined`&&ctxMenu&&ctxMenu.style.display===`block`&&typeof hideCtx===`function`)hideCtx();
   if(typeof floatOpen!==`undefined`&&floatOpen){floatOpen=null;document.querySelectorAll(`.float-popup`).forEach(p=>p.classList.remove(`open`));}
+  ctrlObjectHideCommitMarker();
   ctrlObj.active=true;ctrlObj.items=[];ctrlObj.mode=cur;ctrlObj.suppress=false;
   ctrlObjectStatus(`Ctrl 选择对象中`);
   refresh();
@@ -36,9 +37,36 @@ function ctrlObjectHideSnap(){
   ctrlObj.snap=null;
   if(ctrlObj.marker){map.removeLayer(ctrlObj.marker);ctrlObj.marker=null;}
 }
+function ctrlObjectHideCommitMarker(){
+  ctrlObj.commitLatLng=null;
+  if(ctrlObj.commitMarker){map.removeLayer(ctrlObj.commitMarker);ctrlObj.commitMarker=null;}
+}
+function ctrlObjectItemLatLng(item){
+  if(!item)return null;
+  if(item.type===`point`)return item.point.marker.getLatLng();
+  if(item.latlng)return item.latlng;
+  if(item.type===`edge`&&item.a&&item.b){
+    const A=item.a.marker.getLatLng(),B=item.b.marker.getLatLng();
+    return L.latLng((A.lat+B.lat)/2,(A.lng+B.lng)/2);
+  }
+  return null;
+}
+function ctrlObjectUpdateCommitMarker(){
+  if(!isMobileLayout()||!ctrlObj.active||!ctrlObj.items.length){ctrlObjectHideCommitMarker();return;}
+  const ll=ctrlObjectItemLatLng(ctrlObj.items[ctrlObj.items.length-1]);
+  if(!ll){ctrlObjectHideCommitMarker();return;}
+  ctrlObj.commitLatLng=ll;
+  const icon=L.divIcon({className:``,html:`<div class="ctrl-commit-marker">✓</div>`,iconSize:[28,28],iconAnchor:[-9,31]});
+  if(!ctrlObj.commitMarker){
+    ctrlObj.commitMarker=L.marker(ll,{icon,zIndexOffset:2400,interactive:true,bubblingMouseEvents:false}).addTo(map);
+    ctrlObj.commitMarker.on(`click`,ev=>{if(ev)L.DomEvent.stopPropagation(ev);ctrlObjectCommitAndRestart();});
+  }else{
+    ctrlObj.commitMarker.setLatLng(ll);ctrlObj.commitMarker.setIcon(icon);
+  }
+}
 function ctrlObjectCancel(){
   if(!ctrlObj.active)return;
-  ctrlObj.active=false;ctrlObj.items=[];ctrlObj.mode=null;ctrlObj.suppress=false;ctrlObjectHideSnap();
+  ctrlObj.active=false;ctrlObj.items=[];ctrlObj.mode=null;ctrlObj.suppress=false;ctrlObjectHideSnap();ctrlObjectHideCommitMarker();
   ctrlObjectStatus();
   refresh();
 }
@@ -49,10 +77,11 @@ function ctrlObjectAddPoint(mode,p,route){
   if(hit)ctrlObj.items=ctrlObj.items.filter(x=>x!==hit);
   else ctrlObj.items.push({type:`point`,mode,point:p,route:route||null});
   ctrlObjectStatus(`已选 `+ctrlObj.items.length+` 个对象`);
+  ctrlObjectUpdateCommitMarker();
   refreshIcons(mode);
   return true;
 }
-function ctrlObjectAddEdge(mode,route,segIdx,a,b){
+function ctrlObjectAddEdge(mode,route,segIdx,a,b,latlng){
   if(!ctrlObj.active||ctrlObj.mode!==cur)return false;
   if(mode!==cur)return false;
   const hit=ctrlObj.items.find(x=>{
@@ -61,8 +90,9 @@ function ctrlObjectAddEdge(mode,route,segIdx,a,b){
     return x.route===route&&x.segIdx===segIdx;
   });
   if(hit)ctrlObj.items=ctrlObj.items.filter(x=>x!==hit);
-  else ctrlObj.items.push({type:`edge`,mode,route:route||null,segIdx,a,b});
+  else ctrlObj.items.push({type:`edge`,mode,route:route||null,segIdx,a,b,latlng:latlng||null});
   ctrlObjectStatus(`已选 `+ctrlObj.items.length+` 个对象`);
+  ctrlObjectUpdateCommitMarker();
   refresh();
   return true;
 }
@@ -131,11 +161,17 @@ function commitCtrlRoute(mode,items){
 function ctrlObjectCommit(){
   if(!ctrlObj.active)return;
   const items=ctrlObj.items.slice(),mode=ctrlObj.mode,suppress=ctrlObj.suppress;
-  ctrlObj.active=false;ctrlObj.items=[];ctrlObj.mode=null;ctrlObj.suppress=false;ctrlObjectHideSnap();ctrlObjectStatus();
+  ctrlObj.active=false;ctrlObj.items=[];ctrlObj.mode=null;ctrlObj.suppress=false;ctrlObjectHideSnap();ctrlObjectHideCommitMarker();ctrlObjectStatus();
   refresh();
   if(suppress||!items.length)return;
   if(mode===`gnss`)commitCtrlGnss(items);
   else if(mode===`trav`||mode===`lev`)commitCtrlRoute(mode,items);
+}
+function ctrlObjectCommitAndRestart(){
+  if(!ctrlObj.active)return;
+  const hadItems=ctrlObj.items.length>0;
+  ctrlObjectCommit();
+  if(hadItems&&isMobileLayout())ctrlObjectBegin();
 }
 function projectPointToSegment(P,A,B){
   const ax=A.x,ay=A.y,bx=B.x,by=B.y,px=P.x,py=P.y;
@@ -192,7 +228,7 @@ function ctrlObjectUpdateSnap(latlng){
 function ctrlObjectUseSnap(){
   const s=ctrlObj.snap;
   if(!ctrlObj.active||!s||!s.hit)return false;
-  if(s.mode===`gnss`)return ctrlObjectAddEdge(`gnss`,null,null,s.a,s.b);
+  if(s.mode===`gnss`)return ctrlObjectAddEdge(`gnss`,null,null,s.a,s.b,s.latlng);
   ctrlObj.suppress=true;
   const ev={latlng:s.latlng};
   if(calc.on){toggleCalc(s.mode,s.a.id,s.b.id);return true;}
@@ -208,7 +244,7 @@ function ctrlObjectUseSnap(){
 function useEdgeCandidate(s){
   if(!s)return false;
   if(ctrlObj.active){
-    if(s.mode===`gnss`)return ctrlObjectAddEdge(`gnss`,null,null,s.a,s.b);
+    if(s.mode===`gnss`)return ctrlObjectAddEdge(`gnss`,null,null,s.a,s.b,s.latlng);
     ctrlObj.suppress=true;
     const ev={latlng:s.latlng};
     if(calc.on){toggleCalc(s.mode,s.a.id,s.b.id);return true;}
@@ -465,6 +501,7 @@ function repositionAll(){
   M.lev.impGhosts.forEach(g=>g.marker.setLatLng(displayLL(g.wgs)));
   M.trav.ghosts.forEach(g=>{if(g._wgs)g.setLatLng(displayLL(g._wgs));});
   if(typeof repositionGPSMarker==='function')repositionGPSMarker();
+  ctrlObjectUpdateCommitMarker();
 }
 function noteIcon(n){return L.divIcon({className:``,html:`<div class="note-pin`+((ctrlObj.active||n.dim)?` inactive`:``)+`"><svg width="20" height="28" viewBox="0 0 20 28"><path d="M10 0C4.5 0 0 4.5 0 10c0 7.5 10 18 10 18s10-10.5 10-18C20 4.5 15.5 0 10 0z" fill="#ffb454" stroke="#fff" stroke-width="1.5"/><circle cx="10" cy="10" r="4" fill="#fff"/></svg>`+(n.text?`<span class="note-text">`+n.text+`</span>`:``)+`</div>`,iconSize:[0,0],iconAnchor:[0,0]});}
 function makeNoteMarker(n){
@@ -576,5 +613,6 @@ function refresh(){
   renderPtList();renderCalc();
   if(typeof renderNoteList===`function`)renderNoteList();
   if(cur===`gnss`)refreshGnss();else if(cur===`trav`)refreshTrav();else refreshLev();
+  ctrlObjectUpdateCommitMarker();
   updateUndoButtons();
 }

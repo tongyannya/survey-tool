@@ -13,12 +13,15 @@ function updatePanels(){
   if(isMobileLayout()){
     panelArea.classList.toggle('open',cnt>0);
     panelArea.classList.toggle('points-open',!!panels.points);
+    if(!panels.points)panelArea.style.height='';
+    else if(mobilePointsPanelHeight)panelArea.style.height=mobilePointsPanelHeight+'px';
     names.forEach(n=>{const el=document.getElementById('panel'+n.charAt(0).toUpperCase()+n.slice(1));el.classList.toggle('open',panels[n]);el.style.flex='';});
     document.getElementById('resizerDp').style.display='none';
     document.getElementById('resizerPa').style.display='none';
   }else{
     panelArea.classList.toggle('open',cnt>0);
     panelArea.classList.remove('points-open');
+    panelArea.style.height='';
     names.forEach(n=>{const el=document.getElementById('panel'+n.charAt(0).toUpperCase()+n.slice(1));el.classList.toggle('open',panels[n]);if(!panels[n])el.style.flex='';else if(n==='design')el.style.flex='0 0 auto';else el.style.flex=cnt===1?'0 0 auto':'1';});
     document.getElementById('resizerDp').style.display=(panels.design&&(panels.points||panels.analysis))?'block':'none';
     document.getElementById('resizerPa').style.display=(panels.points&&panels.analysis)?'block':'none';
@@ -54,6 +57,42 @@ document.querySelectorAll('.tool-name').forEach(n=>{n.onclick=e=>{if(e.target.cl
   document.addEventListener('mousemove',e=>{if(!dr)return;const dy=e.clientY-sY;p1.style.flex='0 0 '+Math.max(80,pH1+dy)+'px';p2.style.flex='0 0 '+Math.max(80,pH2-dy)+'px';});
   document.addEventListener('mouseup',()=>{if(!dr)return;dr=null;document.body.style.cursor='';document.body.style.userSelect='';});
 })();
+
+let mobilePointsPanelHeight=null;
+function bindMobilePanelResizer(){
+  const bar=document.getElementById('mobilePanelResizer');
+  const panelArea=document.getElementById('panelArea');
+  if(!bar||!panelArea)return;
+  let dragging=false,startY=0,startH=0;
+  const clamp=h=>{
+    const max=Math.max(160,window.innerHeight*0.72);
+    const min=Math.max(120,window.innerHeight*0.22);
+    return Math.max(min,Math.min(max,h));
+  };
+  bar.addEventListener('pointerdown',e=>{
+    if(!isMobileLayout()||!panels.points)return;
+    e.preventDefault();
+    dragging=true;startY=e.clientY;startH=panelArea.getBoundingClientRect().height;
+    bar.setPointerCapture&&bar.setPointerCapture(e.pointerId);
+    document.body.style.userSelect='none';
+  });
+  bar.addEventListener('pointermove',e=>{
+    if(!dragging)return;
+    mobilePointsPanelHeight=clamp(startH-(e.clientY-startY));
+    panelArea.style.height=mobilePointsPanelHeight+'px';
+    setTimeout(()=>map.invalidateSize(),0);
+  });
+  function end(e){
+    if(!dragging)return;
+    dragging=false;
+    if(e&&bar.releasePointerCapture)try{bar.releasePointerCapture(e.pointerId);}catch(err){}
+    document.body.style.userSelect='';
+    map.invalidateSize();
+  }
+  bar.addEventListener('pointerup',end);
+  bar.addEventListener('pointercancel',end);
+}
+bindMobilePanelResizer();
 
 /* ===== FAB拖拽 ===== */
 (function(){
