@@ -359,7 +359,11 @@ function bindMarker(mode,p){
       const v=nameInp.value.trim();
       if(!v)return;
       if(!originalName&&v===originalDisplay)return;
-      if(v!==originalName){pushUndo();p.name=v;if(p.link)p.indepName=true;refresh();}
+      if(v!==originalName){
+        const conflict=pointNameConflict(v,p);
+        if(conflict){toast(`点名「`+v+`」已被占用`);nameInp.value=originalDisplay;return;}
+        pushUndo();p.name=v;if(p.link)p.indepName=true;refresh();
+      }
     }
     nameInp.onkeydown=ev=>{
       if(ev.key===`Enter`){ev.preventDefault();commitName();skipNameCommit=true;map.closePopup();}

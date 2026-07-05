@@ -3,13 +3,18 @@ const _turnExpanded=new Set();
 function kindCounts(pts){const k=pts.filter(p=>p.kind===`known`||p.kind===`turn`).length;return {known:pts.filter(p=>p.kind===`known`).length,nw:pts.filter(p=>p.kind===`new`).length,turn:pts.filter(p=>p.kind===`turn`).length};}
 
 function startRename(mode,p,el){
-  const i=M[mode].pts.indexOf(p);const curName=label(mode,i);
+  const ref=pointRefs().find(x=>x.mode===mode&&x.p===p);
+  const curName=ref?displayNameOfRef(ref):p.name||``;
   const inp=document.createElement(`input`);inp.className=`nameinput`;inp.value=curName;
   el.replaceWith(inp);inp.focus();inp.select();
   let committed=false;
   const commit=async()=>{
     if(committed)return;committed=true;
-    const v=inp.value.trim();pushUndo();p.name=v?v:null;
+    const v=inp.value.trim();
+    const candidate=v||(ref?displayNameOfRef(ref):``);
+    const conflict=pointNameConflict(candidate,p);
+    if(conflict){toast(`点名「`+candidate+`」已被占用`);refresh();return;}
+    pushUndo();p.name=v?v:null;
     if(p.link)p.indepName=true;
     if(mode===`gnss`&&p.sync){
       const linked=M.trav.routes.flatMap(r=>r.pts).filter(tp=>tp.link===p.id);
@@ -298,7 +303,7 @@ function batchScopePts(){
   const route=routeId?M[cur].routes.find(r=>String(r.id)===String(routeId)):activeRouteOf(cur);
   return route?route.pts.filter(p=>p.kind!==`turn`):[];
 }
-document.getElementById(`batchApply`).onclick=async()=>{if(!selectedPtIds.size){toast(`请先选择要编号的点`);return;}const prefix=document.getElementById(`batchPrefix`).value.trim();const startStr=document.getElementById(`batchStart`).value.trim()||`1`;const start=parseInt(startStr)||1;const pts=batchScopePts().filter(p=>selectedPtIds.has(p.id));if(!pts.length){toast(`请先选择要编号的点`);return;}pushUndo();const maxNum=start+pts.length-1;const pad=Math.max(startStr.length,String(maxNum).length);pts.forEach((p,i)=>{p.name=prefix+String(start+i).padStart(pad,`0`);if(p.link)p.indepName=true;});
+document.getElementById(`batchApply`).onclick=async()=>{if(!selectedPtIds.size){toast(`请先选择要编号的点`);return;}const prefix=document.getElementById(`batchPrefix`).value.trim();const startStr=document.getElementById(`batchStart`).value.trim()||`1`;const start=parseInt(startStr)||1;const pts=batchScopePts().filter(p=>selectedPtIds.has(p.id));if(!pts.length){toast(`请先选择要编号的点`);return;}const maxNum=start+pts.length-1;const pad=Math.max(startStr.length,String(maxNum).length);const names=pts.map((p,i)=>prefix+String(start+i).padStart(pad,`0`));const batchSet=new Set(pts);const conflict=names.map((name,i)=>({name,p:pts[i]})).find(x=>pointNameConflict(x.name,x.p,batchSet));if(conflict){toast(`点名「`+conflict.name+`」已被占用`);return;}pushUndo();pts.forEach((p,i)=>{p.name=names[i];if(p.link)p.indepName=true;});
   if(cur===`gnss`){const syncPts=pts.filter(p=>p.sync&&allTravPts().some(tp=>tp.link===p.id));if(syncPts.length){const names=syncPts.map(p=>p.name).join(`、`);const r=await showConfirm(`批量编号同步`,`<p>选中的 `+syncPts.length+` 个点已同步至导线（`+names+`）。是否将新名称应用到导线？</p>`,[{text:`否，导线保持原名`,value:`no`},{text:`是，同步改名`,value:`yes`,cls:`go`}]);if(r&&r.action===`yes`){syncPts.forEach(p=>{allTravPts().filter(tp=>tp.link===p.id).forEach(tp=>{tp.indepName=false;});});}else{syncPts.forEach(p=>{allTravPts().filter(tp=>tp.link===p.id).forEach(tp=>{tp.indepName=true;});});}}}
   selectedPtIds.clear();refresh();toast(`已编号 `+pts.length+` 个点`);};
 document.getElementById(`selKnown`).onclick=()=>{const ids=batchScopePts().filter(p=>p.kind===`known`).map(p=>p.id);const allSel=ids.length>0&&ids.every(id=>selectedPtIds.has(id));selectedPtIds.clear();if(!allSel)ids.forEach(id=>selectedPtIds.add(id));updateSelUI();};

@@ -15,7 +15,33 @@ const M={
 const ROUTE_LABEL={trav:`导线`,lev:`水准路线`};
 function activeRouteOf(mode){return M[mode].routes.find(r=>r.id===M[mode].activeRouteId)||null;}
 function allRoutePts(mode){return M[mode].routes.flatMap(r=>r.pts);}
-function createRouteOf(mode,name,prefix,parentId){const r={id:++uid,name,prefix:prefix||``,pts:[],closed:false,hidden:false,locked:false,expanded:true,parentId:parentId||null};M[mode].routes.push(r);M[mode].activeRouteId=r.id;return r;}
+function pointRefs(){
+  const refs=[];
+  M.gnss.pts.forEach((p,i)=>refs.push({mode:`gnss`,route:null,p,i}));
+  [`trav`,`lev`].forEach(mode=>M[mode].routes.forEach(route=>route.pts.forEach((p,i)=>refs.push({mode,route,p,i}))));
+  return refs;
+}
+function routePrefixOf(mode,route){return route&&route.prefix?route.prefix:M[mode].prefix;}
+function displayNameOfRef(ref){return ref.p.name||routePrefixOf(ref.mode,ref.route)+String(ref.i+1).padStart(2,`0`);}
+function pointSamePlace(a,b){return !!(a&&b&&Math.abs(a.wgs.lat-b.wgs.lat)<1e-10&&Math.abs(a.wgs.lng-b.wgs.lng)<1e-10);}
+function pointNameConflict(name,self,ignore){
+  const nm=(name||``).trim();
+  if(!nm)return null;
+  return pointRefs().find(ref=>ref.p!==self&&!(ignore&&ignore.has(ref.p))&&displayNameOfRef(ref)===nm&&!pointSamePlace(ref.p,self))||null;
+}
+function usedPrefixes(){
+  const used=new Set([M.gnss.prefix,M.trav.prefix,M.lev.prefix].filter(Boolean).map(x=>String(x).toUpperCase()));
+  [`trav`,`lev`].forEach(mode=>M[mode].routes.forEach(r=>{if(r.prefix)used.add(String(r.prefix).toUpperCase());}));
+  pointRefs().forEach(ref=>{const nm=displayNameOfRef(ref);const m=String(nm||``).match(/^[A-Za-z]+/);if(m)used.add(m[0].toUpperCase());});
+  return used;
+}
+function nextUnusedPrefix(){
+  const used=usedPrefixes();
+  for(let c=65;c<=90;c++){const p=String.fromCharCode(c);if(!used.has(p))return p;}
+  let n=1;while(used.has(`P`+n))n++;
+  return `P`+n;
+}
+function createRouteOf(mode,name,prefix,parentId){const r={id:++uid,name,prefix:prefix||nextUnusedPrefix(),pts:[],closed:false,hidden:false,locked:false,expanded:true,parentId:parentId||null};M[mode].routes.push(r);M[mode].activeRouteId=r.id;return r;}
 function deleteRouteOf(mode,rid){const r=M[mode].routes.find(x=>x.id===rid);if(!r)return;r.pts.forEach(p=>map.removeLayer(p.marker));const kids=M[mode].routes.filter(x=>x.parentId===rid);kids.forEach(c=>c.pts.forEach(p=>map.removeLayer(p.marker)));M[mode].routes=M[mode].routes.filter(x=>x.id!==rid&&x.parentId!==rid);if(M[mode].activeRouteId===rid||kids.some(c=>c.id===M[mode].activeRouteId))M[mode].activeRouteId=M[mode].routes.length?M[mode].routes[0].id:null;}
 function setActiveRouteIdOf(mode,rid){M[mode].activeRouteId=rid;selectedPtIds.clear();}
 [`trav`,`lev`].forEach(mode=>{Object.defineProperty(M[mode],`pts`,{get(){const r=activeRouteOf(mode);return r?r.pts:[];},set(v){const r=activeRouteOf(mode);if(r)r.pts=v;},configurable:true,enumerable:false});});
