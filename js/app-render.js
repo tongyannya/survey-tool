@@ -111,10 +111,10 @@ function renderPtList(){
   const M0=M[mode],kc=kindCounts(M0.pts);
   document.getElementById(`ptTitleText`).textContent=`控制点（已知 `+kc.known+` · 待测 `+kc.nw+`）`;
   box.innerHTML=``;
+  if(bs){bs.dataset.mode=mode;bs.dataset.routeId=``;}
   renderGnssDesignTools(box);
   impBtnRow.style.display=``;
   box.appendChild(impBtnRow);
-  if(bs){bs.style.display=``;box.appendChild(bs);}
   M0.pts.forEach((p,i)=>{
     const w=p.wgs,term=isTerminal(mode,i)?(i===0?`·起`:`·终`):``;
     const row=document.createElement(`div`);row.className=`pt-row`+(selectedPtIds.has(p.id)?` selected`:``);row.dataset.idx=i;row.addEventListener(`click`,e=>{if(e.target.closest(`.ic,.drag-handle,.nameinput,b`))return;if(e.ctrlKey||e.metaKey){if(selectedPtIds.has(p.id))selectedPtIds.delete(p.id);else selectedPtIds.add(p.id);}else{if(selectedPtIds.has(p.id)&&selectedPtIds.size===1)selectedPtIds.clear();else{selectedPtIds.clear();selectedPtIds.add(p.id);}}updateSelUI();});
@@ -131,6 +131,7 @@ function renderPtList(){
     if(M0.pts.length>1){const handle=document.createElement(`span`);handle.className=`drag-handle`;handle.textContent=`⠿`;row.insertBefore(handle,row.firstChild);row.draggable=true;row.ondragstart=e=>{e.dataTransfer.effectAllowed=`move`;setTimeout(()=>row.classList.add(`dragging`),0);box._dragFrom=i;};row.ondragend=()=>{row.classList.remove(`dragging`);box.querySelectorAll(`.pt-row`).forEach(r=>r.classList.remove(`drag-above`,`drag-below`));delete box._dragFrom;};row.ondragover=e=>{e.preventDefault();if(box._dragFrom===undefined||box._dragFrom===i)return;box.querySelectorAll(`.pt-row`).forEach(r=>r.classList.remove(`drag-above`,`drag-below`));const rect=row.getBoundingClientRect();row.classList.add(e.clientY>rect.top+rect.height/2?`drag-below`:`drag-above`);};row.ondrop=e=>{e.preventDefault();const from=box._dragFrom;if(from===undefined)return;let to=i;if(e.clientY>row.getBoundingClientRect().top+row.getBoundingClientRect().height/2)to++;if(from<to)to--;if(from!==to){pushUndo();const[pt]=M0.pts.splice(from,1);M0.pts.splice(to,0,pt);refresh();}};}
     box.appendChild(row);
   });
+  if(bs){bs.style.display=``;box.appendChild(bs);}
   renderGnssTriangleList(box);
   if(legend)box.appendChild(legend);
   const sc=document.getElementById(`selCount`);if(sc)sc.textContent=selectedPtIds.size?`已选 `+selectedPtIds.size+` 个`:``;
@@ -271,14 +272,14 @@ function renderRouteList(box,mode,bs){
       }
       mData.activeRouteId=savedId;
       item.appendChild(body);
-      if(isActive&&!route.locked&&bs){bs.style.display=``;item.appendChild(bs);bsPlaced=true;}
+      if(isActive&&!route.locked&&bs){bs.style.display=``;bs.dataset.mode=mode;bs.dataset.routeId=route.id;item.appendChild(bs);bsPlaced=true;}
     }
     box.appendChild(item);
     const children=mData.routes.filter(r=>r.parentId===route.id);
     children.forEach(child=>renderItem(child,depth+1));
   }
   topRoutes.forEach(route=>renderItem(route,0));
-  if(!bsPlaced&&bs){bs.style.display=`none`;box.appendChild(bs);}
+  if(!bsPlaced&&bs){bs.style.display=`none`;bs.dataset.mode=mode;bs.dataset.routeId=``;box.appendChild(bs);}
 }
 
 function renderCalc(){
@@ -290,10 +291,17 @@ function renderCalc(){
 }
 
 /* ===== 批量编号 (F4) ===== */
-document.getElementById(`batchApply`).onclick=async()=>{if(!selectedPtIds.size){toast(`请先选择要编号的点`);return;}const prefix=document.getElementById(`batchPrefix`).value.trim();const startStr=document.getElementById(`batchStart`).value.trim()||`1`;const start=parseInt(startStr)||1;const pts=M[cur].pts.filter(p=>selectedPtIds.has(p.id));if(!pts.length){toast(`请先选择要编号的点`);return;}pushUndo();const maxNum=start+pts.length-1;const pad=Math.max(startStr.length,String(maxNum).length);pts.forEach((p,i)=>{p.name=prefix+String(start+i).padStart(pad,`0`);if(p.link)p.indepName=true;});
+function batchScopePts(){
+  if(cur===`gnss`)return M.gnss.pts;
+  const bs=document.getElementById(`batchSection`);
+  const routeId=bs&&bs.dataset.mode===cur?bs.dataset.routeId:``;
+  const route=routeId?M[cur].routes.find(r=>String(r.id)===String(routeId)):activeRouteOf(cur);
+  return route?route.pts.filter(p=>p.kind!==`turn`):[];
+}
+document.getElementById(`batchApply`).onclick=async()=>{if(!selectedPtIds.size){toast(`请先选择要编号的点`);return;}const prefix=document.getElementById(`batchPrefix`).value.trim();const startStr=document.getElementById(`batchStart`).value.trim()||`1`;const start=parseInt(startStr)||1;const pts=batchScopePts().filter(p=>selectedPtIds.has(p.id));if(!pts.length){toast(`请先选择要编号的点`);return;}pushUndo();const maxNum=start+pts.length-1;const pad=Math.max(startStr.length,String(maxNum).length);pts.forEach((p,i)=>{p.name=prefix+String(start+i).padStart(pad,`0`);if(p.link)p.indepName=true;});
   if(cur===`gnss`){const syncPts=pts.filter(p=>p.sync&&allTravPts().some(tp=>tp.link===p.id));if(syncPts.length){const names=syncPts.map(p=>p.name).join(`、`);const r=await showConfirm(`批量编号同步`,`<p>选中的 `+syncPts.length+` 个点已同步至导线（`+names+`）。是否将新名称应用到导线？</p>`,[{text:`否，导线保持原名`,value:`no`},{text:`是，同步改名`,value:`yes`,cls:`go`}]);if(r&&r.action===`yes`){syncPts.forEach(p=>{allTravPts().filter(tp=>tp.link===p.id).forEach(tp=>{tp.indepName=false;});});}else{syncPts.forEach(p=>{allTravPts().filter(tp=>tp.link===p.id).forEach(tp=>{tp.indepName=true;});});}}}
   selectedPtIds.clear();refresh();toast(`已编号 `+pts.length+` 个点`);};
-document.getElementById(`selKnown`).onclick=()=>{const ids=M[cur].pts.filter(p=>p.kind===`known`).map(p=>p.id);const allSel=ids.length>0&&ids.every(id=>selectedPtIds.has(id));if(allSel)ids.forEach(id=>selectedPtIds.delete(id));else ids.forEach(id=>selectedPtIds.add(id));updateSelUI();};
-document.getElementById(`selNew`).onclick=()=>{const ids=M[cur].pts.filter(p=>p.kind!==`known`&&!p.link).map(p=>p.id);const allSel=ids.length>0&&ids.every(id=>selectedPtIds.has(id));if(allSel)ids.forEach(id=>selectedPtIds.delete(id));else ids.forEach(id=>selectedPtIds.add(id));updateSelUI();};
+document.getElementById(`selKnown`).onclick=()=>{const ids=batchScopePts().filter(p=>p.kind===`known`).map(p=>p.id);const allSel=ids.length>0&&ids.every(id=>selectedPtIds.has(id));selectedPtIds.clear();if(!allSel)ids.forEach(id=>selectedPtIds.add(id));updateSelUI();};
+document.getElementById(`selNew`).onclick=()=>{const ids=batchScopePts().filter(p=>p.kind!==`known`&&!p.link).map(p=>p.id);const allSel=ids.length>0&&ids.every(id=>selectedPtIds.has(id));selectedPtIds.clear();if(!allSel)ids.forEach(id=>selectedPtIds.add(id));updateSelUI();};
 document.getElementById(`selNone`).onclick=()=>{selectedPtIds.clear();updateSelUI();};
 (function(){const el=document.getElementById(`batchStart`);function fit(){el.style.width=Math.max(4,(el.value||``).length+1)+`ch`;}el.addEventListener(`input`,fit);fit();})();

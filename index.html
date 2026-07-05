@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>控制测量设计器 · GNSS网 / 导线 / 水准</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="style.css?v=20260704k">
+<link rel="stylesheet" href="style.css?v=20260705b">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <header>
-  <h1><button id="announcementBadge" class="title-badge" title="开发日志 / 通知">◇</button><span class="title-text">控制测量设计器</span><i class="help-dot" data-help="overview" title="使用说明">?</i></h1>
+  <h1><button id="announcementBadge" class="title-badge" title="开发日志 / 通知">◇</button><span class="title-text">控制测量设计器</span></h1>
   <div class="toolbar">
     <button id="undoBtn" class="tb-icon" title="撤销"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2.1-7L1 10"/></svg></button>
     <button id="redoBtn" class="tb-icon" title="恢复"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.1-7L23 10"/></svg></button>
@@ -19,6 +19,7 @@
     <button id="zoomAllBtn" class="tb-icon" title="缩放"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4"/><path d="M11 1h4v4"/><path d="M15 11v4h-4"/><path d="M5 15H1v-4"/></svg></button>
     <button id="mobileBaseToggle" class="tb-icon mobile-base-toggle" title="切换底图">卫</button>
   </div>
+  <i class="help-dot title-help" data-help="overview" title="使用说明">?</i>
   <div class="tabs">
     <button class="tab active" data-m="gnss" data-short="GNSS">GNSS 控制网</button>
     <button class="tab" data-m="trav" data-short="导线">导线</button>
@@ -128,15 +129,15 @@
   </div>
   <div class="announcement-main">
     <div id="announcementList" class="announcement-list"></div>
-    <div id="introBody" class="announcement-body"></div>
-  </div>
-  <div class="announcement-foot">
-    <label id="introDismissWrap" class="announcement-dismiss"><input id="introDismiss" type="checkbox"><span>不再自动显示这条通知</span></label>
     <div class="announcement-nav">
       <button id="introPrev">上一页</button>
       <span id="introCount"></span>
       <button id="introNext">下一页</button>
     </div>
+    <div id="introBody" class="announcement-body"></div>
+  </div>
+  <div class="announcement-foot">
+    <label id="introDismissWrap" class="announcement-dismiss"><input id="introDismiss" type="checkbox"><span>不再显示</span></label>
   </div>
 </div></div>
 
@@ -156,7 +157,7 @@
 <script src="js/app-state.js?v=20260704i"></script>
 <script src="js/app-map.js?v=20260704i"></script>
 <script src="js/app-points.js?v=20260704i"></script>
-<script src="js/app-render.js?v=20260704i"></script>
+<script src="js/app-render.js?v=20260705b"></script>
 <script src="js/app-triangulation.js?v=20260704i"></script>
 <script src="js/app-sync.js?v=20260704i"></script>
 <script src="js/app-analysis.js?v=20260704i"></script>
@@ -164,6 +165,6 @@
 <script src="js/app-gps.js?v=20260704i"></script>
 <script src="js/help-text.js?v=20260704i"></script>
 <script src="js/announcements.js?v=20260705a"></script>
-<script src="js/app-ui.js?v=20260704k"></script>
+<script src="js/app-ui.js?v=20260705b"></script>
 </body>
 </html>
