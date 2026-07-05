@@ -30,7 +30,7 @@ function startRename(mode,p,el){
   inp.addEventListener(`blur`,commit);
 }
 function movePoint(mode,i,dir){const pts=M[mode].pts,j=i+dir;if(j<0||j>=pts.length)return;pushUndo();[pts[i],pts[j]]=[pts[j],pts[i]];refresh();}
-function updateSelUI(){document.querySelectorAll(`.pt-row`).forEach(r=>{const idx=parseInt(r.dataset.idx);const p=M[cur].pts[idx];if(p)r.classList.toggle(`selected`,selectedPtIds.has(p.id));});const sc=document.getElementById(`selCount`);if(sc)sc.textContent=selectedPtIds.size?`已选 `+selectedPtIds.size+` 个`:``;}
+function updateSelUI(){document.querySelectorAll(`.pt-row`).forEach(r=>{const id=r.dataset.pid;r.classList.toggle(`selected`,!!id&&selectedPtIds.has(+id));});const sc=document.getElementById(`selCount`);if(sc)sc.textContent=selectedPtIds.size?`已选 `+selectedPtIds.size+` 个`:``;}
 
 function clearGnssEdges(){
   const g=M.gnss;
@@ -122,7 +122,7 @@ function renderPtList(){
   box.appendChild(impBtnRow);
   M0.pts.forEach((p,i)=>{
     const w=p.wgs,term=isTerminal(mode,i)?(i===0?`·起`:`·终`):``;
-    const row=document.createElement(`div`);row.className=`pt-row`+(selectedPtIds.has(p.id)?` selected`:``);row.dataset.idx=i;row.addEventListener(`click`,e=>{if(e.target.closest(`.ic,.drag-handle,.nameinput,b`))return;if(e.ctrlKey||e.metaKey){if(selectedPtIds.has(p.id))selectedPtIds.delete(p.id);else selectedPtIds.add(p.id);}else{if(selectedPtIds.has(p.id)&&selectedPtIds.size===1)selectedPtIds.clear();else{selectedPtIds.clear();selectedPtIds.add(p.id);}}updateSelUI();});
+    const row=document.createElement(`div`);row.className=`pt-row`+(selectedPtIds.has(p.id)?` selected`:``);row.dataset.idx=i;row.dataset.pid=p.id;row.addEventListener(`click`,e=>{if(e.target.closest(`.ic,.drag-handle,.nameinput,b`))return;if(e.ctrlKey||e.metaKey){if(selectedPtIds.has(p.id))selectedPtIds.delete(p.id);else selectedPtIds.add(p.id);}else{if(selectedPtIds.has(p.id)&&selectedPtIds.size===1)selectedPtIds.clear();else{selectedPtIds.clear();selectedPtIds.add(p.id);}}updateSelUI();});
     const b=document.createElement(`b`);b.className=p.link?`link`:(p.kind===`known`?`k`:`n`);b.textContent=label(mode,i)+term;b.title=p.link?`同步自GNSS（点击独立改名）`:`点击改名`;
     b.onclick=()=>startRename(mode,p,b);
     const co=document.createElement(`span`);co.className=`co`;co.textContent=w.lat.toFixed(6)+`, `+w.lng.toFixed(6);
@@ -208,7 +208,7 @@ function renderRouteList(box,mode,bs){
         const p=route.pts[pi],i=pi;
         if(p.kind===`turn`){pi++;continue;}
         const w=p.wgs,term=isTerminal(mode,i)?(i===0?`·起`:`·终`):``;
-        const row=document.createElement(`div`);row.className=`pt-row`+(selectedPtIds.has(p.id)?` selected`:``);row.dataset.idx=i;
+        const row=document.createElement(`div`);row.className=`pt-row`+(selectedPtIds.has(p.id)?` selected`:``);row.dataset.idx=i;row.dataset.pid=p.id;
         row.addEventListener(`click`,e=>{if(e.target.closest(`.ic,.drag-handle,.nameinput,b,.turn-toggle,.turn-row`))return;if(e.ctrlKey||e.metaKey){if(selectedPtIds.has(p.id))selectedPtIds.delete(p.id);else selectedPtIds.add(p.id);}else{if(selectedPtIds.has(p.id)&&selectedPtIds.size===1)selectedPtIds.clear();else{selectedPtIds.clear();selectedPtIds.add(p.id);}}updateSelUI();});
         const isLevLinked=mode===`lev`&&p.link&&route.linkedRouteId;
         const b=document.createElement(`b`);b.className=p.link?`link`:(p.kind===`known`?`k`:`n`);b.textContent=label(mode,i)+term;b.title=p.link?(isLevLinked?`同步自导线（点击独立改名）`:`同步自GNSS（点击独立改名）`):`点击改名`;

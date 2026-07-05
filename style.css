@@ -374,10 +374,7 @@ h1 .help-dot{width:17px;height:17px;font-size:11px;}
   .modal{padding:14px;}
   #panelDesign.open,#panelAnalysis.open{max-height:50vh;}
   #panelDesign.open .panel-body,#panelAnalysis.open .panel-body{max-height:calc(50vh - 36px);}
-  #intro.announcement-history .announcement-modal{height:min(78vh,620px);max-height:82vh;display:flex;flex-direction:column;overflow:hidden;}
-  #intro.announcement-history .announcement-modal::before,#intro.announcement-history .announcement-modal::after{width:26px;height:26px;}
-  #intro.announcement-history .announcement-modal::before{left:-1px;top:-1px;border-left-width:3px;border-top-width:3px;}
-  #intro.announcement-history .announcement-modal::after{right:-1px;bottom:-1px;border-right-width:3px;border-bottom-width:3px;}
+  #intro.announcement-history .announcement-modal{height:min(58vh,520px);max-height:64vh;display:flex;flex-direction:column;overflow:hidden;}
   #intro.announcement-history .announcement-head{flex-shrink:0;}
   #intro.announcement-history .announcement-main{display:flex;flex-direction:column;flex:1;min-height:0;gap:0;}
   #intro.announcement-history .announcement-list{flex:0 0 auto;width:100%;max-height:none;margin:0;overflow:hidden;border-top:1px solid var(--line);}
