@@ -107,6 +107,15 @@ function bindMobilePopupResizer(){
   let drag=null;
   const minH=()=>Math.max(180,window.innerHeight/3);
   const maxH=()=>Math.max(minH(),window.innerHeight*2/3);
+  function applyPopupResize(){
+    if(!drag)return;
+    drag.frame=0;
+    const h=Math.max(drag.min,Math.min(drag.max,drag.startH+(drag.startY-drag.lastY)));
+    drag.el.style.height=h+`px`;
+    drag.el.style.maxHeight=drag.max+`px`;
+    const body=drag.el.querySelector(`.panel-body`);
+    if(body)body.style.maxHeight=Math.max(80,h-36)+`px`;
+  }
   function canResize(el,e){
     if(!isMobileLayout()||!el)return false;
     if(el.classList.contains(`float-popup`)&&!el.classList.contains(`open`))return false;
@@ -125,26 +134,30 @@ function bindMobilePopupResizer(){
       e.preventDefault();
       e.stopPropagation();
       const h=el.getBoundingClientRect().height;
-      drag={el,startY:e.clientY,startH:h};
+      drag={el,startY:e.clientY,lastY:e.clientY,startH:h,min:minH(),max:maxH(),frame:0,oldTouchAction:document.body.style.touchAction};
       el.setPointerCapture&&el.setPointerCapture(e.pointerId);
       document.body.style.userSelect=`none`;
+      document.body.style.touchAction=`none`;
     });
     el.addEventListener(`pointermove`,e=>{
       if(drag&&drag.el===el){
-        const h=Math.max(minH(),Math.min(maxH(),drag.startH+(drag.startY-e.clientY)));
-        el.style.height=h+`px`;
-        el.style.maxHeight=maxH()+`px`;
-        const body=el.querySelector(`.panel-body`);
-        if(body)body.style.maxHeight=Math.max(80,h-36)+`px`;
+        e.preventDefault();
+        e.stopPropagation();
+        drag.lastY=e.clientY;
+        if(!drag.frame)drag.frame=requestAnimationFrame(applyPopupResize);
         return;
       }
       el.style.cursor=canResize(el,e)?`ns-resize`:``;
     });
     function end(e){
       if(!drag||drag.el!==el)return;
+      if(drag.frame)cancelAnimationFrame(drag.frame);
+      applyPopupResize();
+      const oldTouchAction=drag.oldTouchAction;
       drag=null;
       if(e&&el.releasePointerCapture)try{el.releasePointerCapture(e.pointerId);}catch(err){}
       document.body.style.userSelect=``;
+      document.body.style.touchAction=oldTouchAction||``;
       el.style.cursor=``;
     }
     el.addEventListener(`pointerup`,end);
