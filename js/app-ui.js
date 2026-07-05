@@ -113,9 +113,9 @@ function bindMobilePopupResizer(){
     if(el.classList.contains(`panel`)&&!el.classList.contains(`open`))return false;
     const r=el.getBoundingClientRect();
     if(r.height<minH()-2)return false;
-    const nearBottom=e.clientY>=r.bottom-32&&e.clientY<=r.bottom+8;
-    const nearRight=e.clientX>=r.right-42&&e.clientX<=r.right+10;
-    return nearBottom&&nearRight;
+    const nearTop=e.clientY>=r.top-8&&e.clientY<=r.top+42;
+    const nearLeft=e.clientX>=r.left-8&&e.clientX<=r.left+52;
+    return nearTop&&nearLeft;
   }
   ids.forEach(id=>{
     const el=document.getElementById(id);
