@@ -57,11 +57,9 @@ function refreshTrav(){
   const keCount=keFlags.filter(Boolean).length;
   const unknownSegs=segs.filter((_,i)=>!keFlags[i]);
   const total=unknownSegs.length?unknownSegs.reduce((a,b)=>a+b,0):0;
-  const allTotal=segs.reduce((a,b)=>a+b,0);
   const avg=unknownSegs.length?total/unknownSegs.length:0,min=unknownSegs.length?Math.min(...unknownSegs):0,max=unknownSegs.length?Math.max(...unknownSegs):0,kc=kindCounts(pts);
   let html=`<div class="summary"><div class="stat"><div class="k">导线</div><div class="v">`+ar.name+(ar.closed?`（闭合）`:`（附合）`)+`</div></div><div class="stat"><div class="k">点数(已知/待测)</div><div class="v">`+kc.known+` / `+kc.nw+`</div></div><div class="stat"><div class="k">导线全长</div><div class="v">`+(total<1000?total.toFixed(0)+` m`:(total/1000).toFixed(2)+` km`)+(keCount?` <span style="font-size:11px;opacity:.7">（不含 `+keCount+` 条已知边）</span>`:``)+`</div></div><div class="stat"><div class="k">平均边长</div><div class="v">`+(unknownSegs.length?avg.toFixed(0):0)+` m</div></div><div class="stat"><div class="k">最短/最长</div><div class="v">`+(unknownSegs.length?min.toFixed(0)+`/`+max.toFixed(0):`—`)+`</div></div></div>`;
   html+=`<div class="sub-h">边长 · 相邻边长比（限 ≤ 1:`+M.trav.maxRatio+`）</div>`;
-  const nSeg=ar.closed&&pts.length>=3?segs.length:segs.length;
   const savedIdA=M.trav.activeRouteId;M.trav.activeRouteId=ar.id;
   for(let i=0;i<segs.length;i++){
     const isKE=keFlags[i];

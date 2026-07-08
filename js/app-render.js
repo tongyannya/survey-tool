@@ -1,6 +1,6 @@
 /* ===== 列表渲染与批量编号 ===== */
 const _turnExpanded=new Set();
-function kindCounts(pts){const k=pts.filter(p=>p.kind===`known`||p.kind===`turn`).length;return {known:pts.filter(p=>p.kind===`known`).length,nw:pts.filter(p=>p.kind===`new`).length,turn:pts.filter(p=>p.kind===`turn`).length};}
+function kindCounts(pts){return {known:pts.filter(p=>p.kind===`known`).length,nw:pts.filter(p=>p.kind===`new`).length,turn:pts.filter(p=>p.kind===`turn`).length};}
 
 function startRename(mode,p,el){
   const ref=pointRefs().find(x=>x.mode===mode&&x.p===p);
@@ -29,7 +29,6 @@ function startRename(mode,p,el){
   inp.addEventListener(`keydown`,ev=>{if(ev.key===`Enter`){ev.preventDefault();inp.blur();}else if(ev.key===`Escape`)refresh();});
   inp.addEventListener(`blur`,commit);
 }
-function movePoint(mode,i,dir){const pts=M[mode].pts,j=i+dir;if(j<0||j>=pts.length)return;pushUndo();[pts[i],pts[j]]=[pts[j],pts[i]];refresh();}
 function updateSelUI(){document.querySelectorAll(`.pt-row`).forEach(r=>{const id=r.dataset.pid;r.classList.toggle(`selected`,!!id&&selectedPtIds.has(+id));});const sc=document.getElementById(`selCount`);if(sc)sc.textContent=selectedPtIds.size?`已选 `+selectedPtIds.size+` 个`:``;}
 
 function clearGnssEdges(){

@@ -97,36 +97,24 @@ function restore(sp){
   M.gnss.minEdge=sp.params.gnss.minEdge;M.trav.maxRatio=sp.params.trav.maxRatio;M.trav.minAng=sp.params.trav.minAng;M.trav.totLen=sp.params.trav.totLen;M.lev.maxSight=sp.params.lev.maxSight;
   sp.modes.gnss.points.forEach(d=>{const p={id:d.id,kind:d.kind,name:d.name,wgs:{lat:d.wgs.lat,lng:d.wgs.lng},sync:!!d.sync,link:d.link||null,indepName:!!d.indepName,fromImpGhost:!!d.fromImpGhost,knownEdgeAfter:!!d.knownEdgeAfter};p.marker=L.marker(displayLL(p.wgs),{draggable:!p.link}).addTo(map);M.gnss.pts.push(p);bindMarker(`gnss`,p);});(sp.modes.gnss.impGhosts||[]).forEach(d=>{const g={id:d.id,name:d.name,wgs:{lat:d.wgs.lat,lng:d.wgs.lng}};g.marker=makeImpGhostMarker(`gnss`,g);M.gnss.impGhosts.push(g);});
   const td=sp.modes.trav;
-  if(td.routes){
-    td.routes.forEach(rd=>{
-      const route={id:rd.id,name:rd.name,prefix:rd.prefix||``,closed:!!rd.closed,hidden:!!rd.hidden,locked:!!rd.locked,expanded:rd.expanded!==false,parentId:rd.parentId||null,pts:[]};
-      M.trav.routes.push(route);M.trav.activeRouteId=route.id;
-      rd.points.forEach(d=>{const p={id:d.id,kind:d.kind,name:d.name,wgs:{lat:d.wgs.lat,lng:d.wgs.lng},sync:!!d.sync,link:d.link||null,indepName:!!d.indepName,fromImpGhost:!!d.fromImpGhost,knownEdgeAfter:!!d.knownEdgeAfter};p.marker=L.marker(displayLL(p.wgs),{draggable:!p.link&&!route.locked}).addTo(map);route.pts.push(p);bindMarker(`trav`,p);});
-    });
-    M.trav.activeRouteId=td.activeRouteId||null;
-    if(M.trav.activeRouteId&&!M.trav.routes.find(r=>r.id===M.trav.activeRouteId))M.trav.activeRouteId=M.trav.routes.length?M.trav.routes[0].id:null;
-  }else if(td.points&&td.points.length){
-    const route={id:++uid,name:`导线1`,prefix:``,closed:false,hidden:false,locked:false,expanded:true,parentId:null,pts:[]};
+  td.routes.forEach(rd=>{
+    const route={id:rd.id,name:rd.name,prefix:rd.prefix||``,closed:!!rd.closed,hidden:!!rd.hidden,locked:!!rd.locked,expanded:rd.expanded!==false,parentId:rd.parentId||null,pts:[]};
     M.trav.routes.push(route);M.trav.activeRouteId=route.id;
-    td.points.forEach(d=>{const p={id:d.id,kind:d.kind,name:d.name,wgs:{lat:d.wgs.lat,lng:d.wgs.lng},sync:!!d.sync,link:d.link||null,indepName:!!d.indepName,fromImpGhost:!!d.fromImpGhost,knownEdgeAfter:!!d.knownEdgeAfter};p.marker=L.marker(displayLL(p.wgs),{draggable:!p.link}).addTo(map);route.pts.push(p);bindMarker(`trav`,p);});
-  }
-  const travGhData=td.impGhosts||td.routes&&td.routes.flatMap(r=>r.impGhosts||[])||[];
+    rd.points.forEach(d=>{const p={id:d.id,kind:d.kind,name:d.name,wgs:{lat:d.wgs.lat,lng:d.wgs.lng},sync:!!d.sync,link:d.link||null,indepName:!!d.indepName,fromImpGhost:!!d.fromImpGhost,knownEdgeAfter:!!d.knownEdgeAfter};p.marker=L.marker(displayLL(p.wgs),{draggable:!p.link&&!route.locked}).addTo(map);route.pts.push(p);bindMarker(`trav`,p);});
+  });
+  M.trav.activeRouteId=td.activeRouteId||null;
+  if(M.trav.activeRouteId&&!M.trav.routes.find(r=>r.id===M.trav.activeRouteId))M.trav.activeRouteId=M.trav.routes.length?M.trav.routes[0].id:null;
+  const travGhData=td.impGhosts||[];
   travGhData.forEach(d=>{const g={id:d.id,name:d.name,wgs:{lat:d.wgs.lat,lng:d.wgs.lng}};g.marker=makeImpGhostMarker(`trav`,g);M.trav.impGhosts.push(g);});
   const ld=sp.modes.lev;
-  if(ld.routes){
-    ld.routes.forEach(rd=>{
-      const route={id:rd.id,name:rd.name,prefix:rd.prefix||``,closed:!!rd.closed,hidden:!!rd.hidden,locked:!!rd.locked,expanded:rd.expanded!==false,parentId:rd.parentId||null,linkedRouteId:rd.linkedRouteId||null,pts:[]};
-      M.lev.routes.push(route);M.lev.activeRouteId=route.id;
-      rd.points.forEach(d=>{const p={id:d.id,kind:d.kind,name:d.name,wgs:{lat:d.wgs.lat,lng:d.wgs.lng},sync:!!d.sync,link:d.link||null,indepName:!!d.indepName,fromImpGhost:!!d.fromImpGhost,knownEdgeAfter:!!d.knownEdgeAfter};p.marker=L.marker(displayLL(p.wgs),{draggable:!p.link&&!route.locked}).addTo(map);route.pts.push(p);bindMarker(`lev`,p);});
-    });
-    M.lev.activeRouteId=ld.activeRouteId||null;
-    if(M.lev.activeRouteId&&!M.lev.routes.find(r=>r.id===M.lev.activeRouteId))M.lev.activeRouteId=M.lev.routes.length?M.lev.routes[0].id:null;
-  }else if(ld.points&&ld.points.length){
-    const route={id:++uid,name:`水准1`,prefix:``,closed:false,hidden:false,locked:false,expanded:true,parentId:null,pts:[]};
+  ld.routes.forEach(rd=>{
+    const route={id:rd.id,name:rd.name,prefix:rd.prefix||``,closed:!!rd.closed,hidden:!!rd.hidden,locked:!!rd.locked,expanded:rd.expanded!==false,parentId:rd.parentId||null,linkedRouteId:rd.linkedRouteId||null,pts:[]};
     M.lev.routes.push(route);M.lev.activeRouteId=route.id;
-    ld.points.forEach(d=>{const p={id:d.id,kind:d.kind,name:d.name,wgs:{lat:d.wgs.lat,lng:d.wgs.lng},sync:!!d.sync,link:d.link||null,indepName:!!d.indepName,fromImpGhost:!!d.fromImpGhost,knownEdgeAfter:!!d.knownEdgeAfter};p.marker=L.marker(displayLL(p.wgs),{draggable:true}).addTo(map);route.pts.push(p);bindMarker(`lev`,p);});
-  }
-  const levGhData=ld.impGhosts||ld.routes&&ld.routes.flatMap(r=>r.impGhosts||[])||[];
+    rd.points.forEach(d=>{const p={id:d.id,kind:d.kind,name:d.name,wgs:{lat:d.wgs.lat,lng:d.wgs.lng},sync:!!d.sync,link:d.link||null,indepName:!!d.indepName,fromImpGhost:!!d.fromImpGhost,knownEdgeAfter:!!d.knownEdgeAfter};p.marker=L.marker(displayLL(p.wgs),{draggable:!p.link&&!route.locked}).addTo(map);route.pts.push(p);bindMarker(`lev`,p);});
+  });
+  M.lev.activeRouteId=ld.activeRouteId||null;
+  if(M.lev.activeRouteId&&!M.lev.routes.find(r=>r.id===M.lev.activeRouteId))M.lev.activeRouteId=M.lev.routes.length?M.lev.routes[0].id:null;
+  const levGhData=ld.impGhosts||[];
   levGhData.forEach(d=>{const g={id:d.id,name:d.name,wgs:{lat:d.wgs.lat,lng:d.wgs.lng}};g.marker=makeImpGhostMarker(`lev`,g);M.lev.impGhosts.push(g);});
   const gid={};M.gnss.pts.forEach(p=>gid[p.id]=p);
   (sp.modes.gnss.edges||[]).forEach(([a,b])=>{const pa=gid[a],pb=gid[b];if(pa&&pb)M.gnss.edges.push({a:pa,b:pb});});
