@@ -1,6 +1,5 @@
 /* ===== 标记与交互 ===== */
 let _dragging=false;
-let noteMode=false;
 function isTerminal(mode,i){
   if(mode===`trav`||mode===`lev`){const r=activeRouteOf(mode);if(!r||r.closed)return false;return i===0||i===r.pts.length-1;}
   return false;
@@ -229,43 +228,6 @@ function repositionAll(){
   if(typeof repositionGPSMarker==='function')repositionGPSMarker();
   ctrlObjectUpdateCommitMarker();
 }
-function noteIcon(n){return L.divIcon({className:``,html:`<div class="note-pin`+((ctrlObj.active||n.dim)?` inactive`:``)+`"><svg width="20" height="28" viewBox="0 0 20 28"><path d="M10 0C4.5 0 0 4.5 0 10c0 7.5 10 18 10 18s10-10.5 10-18C20 4.5 15.5 0 10 0z" fill="#ffb454" stroke="#fff" stroke-width="1.5"/><circle cx="10" cy="10" r="4" fill="#fff"/></svg>`+(n.text?`<span class="note-text">`+n.text+`</span>`:``)+`</div>`,iconSize:[0,0],iconAnchor:[0,0]});}
-function makeNoteMarker(n){
-  const mk=L.marker(displayLL(n.wgs),{draggable:!n.dim,icon:noteIcon(n)});
-  mk.on(`dragstart`,()=>{if(ctrlObj.active||n.dim)return;_dragging=true;pushUndo();});
-  mk.on(`drag`,()=>{if(ctrlObj.active||n.dim)return;n.wgs=trueLL(mk.getLatLng());});
-  mk.on(`dragend`,()=>{if(ctrlObj.active||n.dim)return;_dragging=false;});
-  function showNotePopup(e){
-    if(e){L.DomEvent.stopPropagation(e);L.DomEvent.preventDefault(e);}
-    if(ctrlObj.active||n.dim)return;
-    const div=document.createElement(`div`);div.style.textAlign=`center`;
-    const originalText=n.text||``;
-    const inp=document.createElement(`input`);
-    inp.type=`text`;inp.value=originalText;inp.placeholder=`备注文字`;
-    inp.style.cssText=`width:100%;padding:4px 8px;border:1px solid var(--line);border-radius:4px;background:var(--panel2);color:var(--text);font-size:13px;text-align:center;margin-bottom:6px;`;
-    let skipCommit=false;
-    function commitNote(){if(skipCommit)return;const v=inp.value.trim();if(v!==originalText){pushUndo();n.text=v;mk.setIcon(noteIcon(n));refresh();}}
-    inp.onkeydown=ev=>{
-      if(ev.key===`Enter`){ev.preventDefault();commitNote();skipCommit=true;map.closePopup();}
-      else if(ev.key===`Escape`){ev.preventDefault();ev.stopPropagation();if(inp.value!==originalText)inp.value=originalText;else{skipCommit=true;map.closePopup();}}
-    };
-    div.appendChild(inp);
-    const db=document.createElement(`button`);db.className=`del-popup-btn`;db.textContent=`删除`;
-    db.onclick=()=>{skipCommit=true;map.closePopup();pushUndo();map.removeLayer(mk);M.notes=M.notes.filter(x=>x!==n);refresh();};
-    div.appendChild(db);
-    const dim=document.createElement(`button`);dim.className=`kind-popup-btn`;dim.textContent=`虚化`;
-    dim.onclick=()=>{skipCommit=true;pushUndo();n.text=inp.value.trim();n.dim=true;map.closePopup();refresh();toast(`图记已虚化`);};
-    div.appendChild(dim);
-    const pop=L.popup({offset:[0,-12]}).setLatLng(mk.getLatLng()).setContent(div).openOn(map);pop.on(`remove`,commitNote);
-  }
-  mk.on(`contextmenu`,showNotePopup);
-  let _lp=null;
-  mk.on(`touchstart`,()=>{if(ctrlObj.active||n.dim)return;_lp=setTimeout(()=>{_lp=null;showNotePopup();},600);});
-  mk.on(`touchend`,()=>{if(_lp){clearTimeout(_lp);_lp=null;}});
-  mk.on(`touchmove`,()=>{if(_lp){clearTimeout(_lp);_lp=null;}});
-  if(!isMobileLayout())mk.bindTooltip(`右键编辑`,{direction:`top`,offset:[0,-28]});
-  return mk;
-}
 map.on(`mousemove`,e=>ctrlObjectUpdateSnap(e.latlng));
 map.on(`click`,async e=>{
   if(_popupJustClosed){_popupJustClosed=false;return;}
@@ -278,7 +240,7 @@ map.on(`click`,async e=>{
     await handleExpandedEdgeClick(e.latlng);
     return;
   }
-  if(noteMode){pushUndo();const n={id:++uid,text:``,wgs:trueLL(e.latlng)};n.marker=makeNoteMarker(n);n.marker.addTo(map);M.notes.push(n);refresh();return;}
+  if(handleNoteMapClick(e.latlng))return;
   if(cur===`gnss`){if(M.gnss.sub!==`point`)return;addPoint(e.latlng);return;}
   addPoint(e.latlng);
 });
@@ -335,9 +297,8 @@ function refresh(){
     M[mode].impGhosts.forEach(g=>{if(mode===cur){if(!map.hasLayer(g.marker))g.marker.addTo(map);}else if(map.hasLayer(g.marker))map.removeLayer(g.marker);});
   });
   clearLines(`gnss`);clearLines(`trav`);clearLines(`lev`);clearTriLayers();buildGhosts();
-  M.notes.forEach(n=>{n.marker.setIcon(noteIcon(n));if(n.marker.dragging){if(ctrlObj.active||n.dim)n.marker.dragging.disable();else n.marker.dragging.enable();}if(!map.hasLayer(n.marker))n.marker.addTo(map);});
+  refreshNotes();
   renderPtList();renderCalc();
-  if(typeof renderNoteList===`function`)renderNoteList();
   if(cur===`gnss`)refreshGnss();else if(cur===`trav`)refreshTrav();else refreshLev();
   ctrlObjectUpdateCommitMarker();
   updateUndoButtons();
