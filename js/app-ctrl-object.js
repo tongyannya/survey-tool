@@ -3,13 +3,34 @@ const ctrlObj={active:false,items:[],mode:null,suppress:false,snap:null,marker:n
 const CTRL_SNAP_SHOW=18,CTRL_SNAP_HIT=8,EDGE_TOUCH_HIT=22;
 function isMobileLayout(){return window.matchMedia&&window.matchMedia(`(max-width:760px)`).matches;}
 function edgeTouchEnabled(){return isMobileLayout()&&(ctrlObj.active||calc.on);}
+function calcEdgeInputActive(ev){
+  if(!calc.on)return false;
+  if(isMobileLayout())return true;
+  if(ctrlObj.active)return true;
+  const oe=ev&&ev.originalEvent;
+  return !!(oe&&(oe.ctrlKey||oe.metaKey));
+}
+function calcStatusText(){
+  const r=typeof calcSum===`function`?calcSum():{sum:0};
+  return r.sum.toFixed(2)+` m`;
+}
 function ctrlObjectStatus(text){
   const el=document.getElementById(`ctrlObjectHint`);
-  const label=el&&el.querySelector(`span`);
-  if(label)label.textContent=text||`按住 Ctrl 选择对象`;
-  if(el)el.classList.toggle(`active`,!!text);
+  const desktopLabel=el&&el.querySelector(`.ctrl-desktop-text`);
+  const mobileLabel=el&&el.querySelector(`.mobile-snap-toggle span`);
   const sw=document.getElementById(`mobileCtrlSwitch`);
-  if(sw)sw.checked=!!text;
+  if(calc.on){
+    const total=calcStatusText();
+    if(desktopLabel)desktopLabel.textContent=ctrlObj.active?`当前合计 `+total:`按住Ctrl累加边长`;
+    if(mobileLabel)mobileLabel.textContent=`对象捕捉：边长累加 `+total;
+    if(sw)sw.checked=false;
+    if(el){el.classList.add(`active`);el.classList.add(`calc-mode`);}
+    return;
+  }
+  if(desktopLabel)desktopLabel.textContent=text||`按住 Ctrl 选择对象`;
+  if(mobileLabel)mobileLabel.textContent=`对象捕捉`;
+  if(sw)sw.checked=!!ctrlObj.active&&isMobileLayout();
+  if(el){el.classList.toggle(`active`,!!text);el.classList.remove(`calc-mode`);}
 }
 function ctrlObjectPointSelected(p){return ctrlObj.active&&ctrlObj.items.some(x=>x.type===`point`&&x.point===p);}
 function ctrlObjectEdgeSelected(mode,route,segIdx,a,b){
@@ -226,10 +247,10 @@ function ctrlObjectUpdateSnap(latlng){
 function ctrlObjectUseSnap(){
   const s=ctrlObj.snap;
   if(!ctrlObj.active||!s||!s.hit)return false;
+  if(calc.on){toggleCalc(s.mode,s.a.id,s.b.id);return true;}
   if(s.mode===`gnss`)return ctrlObjectAddEdge(`gnss`,null,null,s.a,s.b,s.latlng);
   ctrlObj.suppress=true;
   const ev={latlng:s.latlng};
-  if(calc.on){toggleCalc(s.mode,s.a.id,s.b.id);return true;}
   if(s.mode===`trav`){showSegPopup(`trav`,s.segIdx,ev,s.route);return true;}
   if(s.mode===`lev`){
     if(s.a.knownEdgeAfter){toast(`水准已知边不可编辑`);return true;}
@@ -241,11 +262,14 @@ function ctrlObjectUseSnap(){
 }
 function useEdgeCandidate(s){
   if(!s)return false;
+  if(calc.on){
+    toggleCalc(s.mode,s.a.id,s.b.id);
+    return true;
+  }
   if(ctrlObj.active){
     if(s.mode===`gnss`)return ctrlObjectAddEdge(`gnss`,null,null,s.a,s.b,s.latlng);
     ctrlObj.suppress=true;
     const ev={latlng:s.latlng};
-    if(calc.on){toggleCalc(s.mode,s.a.id,s.b.id);return true;}
     if(s.mode===`trav`){showSegPopup(`trav`,s.segIdx,ev,s.route);return true;}
     if(s.mode===`lev`){
       if(s.a.knownEdgeAfter){toast(`水准已知边不可编辑`);return true;}
@@ -253,9 +277,6 @@ function useEdgeCandidate(s){
       else showSegPopup(`lev`,s.segIdx,ev,s.route);
       return true;
     }
-  }else if(calc.on){
-    toggleCalc(s.mode,s.a.id,s.b.id);
-    return true;
   }
   return false;
 }

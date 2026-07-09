@@ -292,6 +292,7 @@ function renderCalc(){
   if(!calc.on){box.innerHTML=`关闭状态。开启后点击地图上的边/导线段即可累加长度。`;box.className=`note`;return;}
   const r=calcSum();box.className=``;
   box.innerHTML=`<div class="row ok"><span class="lab">已选 `+r.n+` 条</span><span class="val">合计 `+r.sum.toFixed(2)+` m（`+(r.sum/1000).toFixed(3)+` km）</span></div><div class="note">点击边可加入/移除。仅累加当前模式的边。</div>`;
+  if(typeof ctrlObjectStatus===`function`)ctrlObjectStatus();
 }
 
 /* ===== 批量编号 (F4) ===== */

@@ -4,7 +4,7 @@ function refreshGnss(){
   const g=M.gnss,box=document.getElementById(`analysis`);
   g.triangles.forEach((t,k)=>{const poly=L.polygon(t.pts.map(p=>p.marker.getLatLng()),{color:`#91D0CD`,weight:1,fillColor:`#91D0CD`,fillOpacity:.12,interactive:false}).addTo(map);g.triLayers.push(poly);const c=t.pts.reduce((a,p)=>{const ll=p.marker.getLatLng();return {lat:a.lat+ll.lat/3,lng:a.lng+ll.lng/3};},{lat:0,lng:0});g.triLayers.push(L.marker([c.lat,c.lng],{icon:L.divIcon({className:``,html:`<div class="tri-label">`+circ(k+1)+`</div>`,iconSize:[20,20],iconAnchor:[10,10]}),interactive:false}).addTo(map));});
   let lens=[];
-  g.edges.forEach(e=>{const A=e.a.marker.getLatLng(),B=e.b.marker.getLatLng(),d=vincenty(e.a.wgs,e.b.wgs);lens.push(d);const key=keyOf(e.a.id,e.b.id),calcSel=calc.on&&calcHas(key),ctrlSel=ctrlObjectEdgeSelected(`gnss`,null,null,e.a,e.b),sel=calcSel||ctrlSel;drawSeg(`gnss`,A,B,{color:ctrlSel?`#ffc145`:(calcSel?`#ffffff`:(d>=g.minEdge?`#91D0CD`:`#ff6b6b`)),weight:sel?5:2.5,dist:d,bad:d<g.minEdge&&!sel,onClick:(calc.on||ctrlObj.active)?(ev)=>{if(ctrlObj.active&&ctrlObjectAddEdge(`gnss`,null,null,e.a,e.b,ev.latlng))return;if(calc.on)toggleCalc(`gnss`,e.a.id,e.b.id);}:null});});
+  g.edges.forEach(e=>{const A=e.a.marker.getLatLng(),B=e.b.marker.getLatLng(),d=vincenty(e.a.wgs,e.b.wgs);lens.push(d);const key=keyOf(e.a.id,e.b.id),calcSel=calc.on&&calcHas(key),ctrlSel=ctrlObjectEdgeSelected(`gnss`,null,null,e.a,e.b),sel=calcSel||ctrlSel;drawSeg(`gnss`,A,B,{color:(ctrlSel||calcSel)?`#ffc145`:(d>=g.minEdge?`#91D0CD`:`#ff6b6b`),weight:sel?5:2.5,dist:d,bad:d<g.minEdge&&!sel,onClick:(calc.on||ctrlObj.active)?(ev)=>{if(calcEdgeInputActive(ev)){toggleCalc(`gnss`,e.a.id,e.b.id);return;}if(ctrlObj.active&&ctrlObjectAddEdge(`gnss`,null,null,e.a,e.b,ev.latlng))return;}:null});});
   if(g.pts.length<3){box.innerHTML=`<div class="note">布点后自动计算。</div>`;return;}
   const st=gnssStats(),kc=kindCounts(g.pts),min=lens.length?Math.min(...lens):0,max=lens.length?Math.max(...lens):0;
   let html=`<div class="summary"><div class="stat"><div class="k">点数(已知/待测)</div><div class="v">`+kc.known+` / `+kc.nw+`</div></div><div class="stat"><div class="k">基线数</div><div class="v">`+g.edges.length+`</div></div><div class="stat"><div class="k">三角形(自动)</div><div class="v">`+st.tri+`</div></div><div class="stat"><div class="k">已编号三角网</div><div class="v">`+g.triangles.length+`</div></div><div class="stat"><div class="k">最短边</div><div class="v">`+(min?min.toFixed(0):`—`)+` m</div></div><div class="stat"><div class="k">最长边</div><div class="v">`+(max?max.toFixed(0):`—`)+` m</div></div></div>`;
@@ -25,16 +25,14 @@ function refreshTrav(){
     M.trav.activeRouteId=route.id;
     for(let i=0;i<pts.length-1;i++){
       const A=pts[i].marker.getLatLng(),B=pts[i+1].marker.getLatLng(),d=vincenty(pts[i].wgs,pts[i+1].wgs);
-      const key=keyOf(pts[i].id,pts[i+1].id),sel=(calc.on&&calcHas(key))||ctrlObjectEdgeSelected(`trav`,route,i,pts[i],pts[i+1]);
-      const ctrlSel=ctrlObjectEdgeSelected(`trav`,route,i,pts[i],pts[i+1]);
-      drawSeg(`trav`,A,B,{color:ctrlSel?`#ffc145`:(sel?`#ffffff`:`#5ab0ff`),weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[i].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`trav`,pts[i].id,pts[i+1].id):(ev)=>showSegPopup(`trav`,i,ev,route)):null});
+      const key=keyOf(pts[i].id,pts[i+1].id),calcSel=calc.on&&calcHas(key),ctrlSel=ctrlObjectEdgeSelected(`trav`,route,i,pts[i],pts[i+1]),sel=calcSel||ctrlSel;
+      drawSeg(`trav`,A,B,{color:(ctrlSel||calcSel)?`#ffc145`:`#5ab0ff`,weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[i].knownEdgeAfter,onClick:isAct?(ev)=>{if(calcEdgeInputActive(ev)){toggleCalc(`trav`,pts[i].id,pts[i+1].id);return;}showSegPopup(`trav`,i,ev,route);}:null});
     }
     if(route.closed&&pts.length>=3){
       const last=pts[pts.length-1],first=pts[0];
       const A=last.marker.getLatLng(),B=first.marker.getLatLng(),d=vincenty(last.wgs,first.wgs);
-      const key=keyOf(last.id,first.id),sel=(calc.on&&calcHas(key))||ctrlObjectEdgeSelected(`trav`,route,pts.length-1,last,first);
-      const ctrlSel=ctrlObjectEdgeSelected(`trav`,route,pts.length-1,last,first);
-      drawSeg(`trav`,A,B,{color:ctrlSel?`#ffc145`:(sel?`#ffffff`:`#5ab0ff`),weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[pts.length-1].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`trav`,last.id,first.id):(ev)=>showSegPopup(`trav`,pts.length-1,ev,route)):null});
+      const key=keyOf(last.id,first.id),calcSel=calc.on&&calcHas(key),ctrlSel=ctrlObjectEdgeSelected(`trav`,route,pts.length-1,last,first),sel=calcSel||ctrlSel;
+      drawSeg(`trav`,A,B,{color:(ctrlSel||calcSel)?`#ffc145`:`#5ab0ff`,weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[pts.length-1].knownEdgeAfter,onClick:isAct?(ev)=>{if(calcEdgeInputActive(ev)){toggleCalc(`trav`,last.id,first.id);return;}showSegPopup(`trav`,pts.length-1,ev,route);}:null});
     }
     if(isAct){
       for(let i=1;i<pts.length-1;i++){const ang=angleAt(pts[i-1].wgs,pts[i].wgs,pts[i+1].wgs);if(ang<M.trav.minAng)M.trav.lines.push(L.marker(pts[i].marker.getLatLng(),{icon:L.divIcon({className:``,html:`<div class="ang-label" style="margin-top:-26px;">`+ang.toFixed(0)+`°</div>`,iconSize:[0,0]}),interactive:false}).addTo(map));}
@@ -110,16 +108,14 @@ function refreshLev(){
     M.lev.activeRouteId=route.id;
     for(let i=0;i<pts.length-1;i++){
       const A=pts[i].marker.getLatLng(),B=pts[i+1].marker.getLatLng(),d=vincenty(pts[i].wgs,pts[i+1].wgs);
-      const key=keyOf(pts[i].id,pts[i+1].id),sel=(calc.on&&calcHas(key))||ctrlObjectEdgeSelected(`lev`,route,i,pts[i],pts[i+1]);
-      const ctrlSel=ctrlObjectEdgeSelected(`lev`,route,i,pts[i],pts[i+1]);
-      drawSeg(`lev`,A,B,{color:ctrlSel?`#ffc145`:(sel?`#ffffff`:`#b388ff`),weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[i].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`lev`,pts[i].id,pts[i+1].id):(pts[i].knownEdgeAfter?null:(route.linkedRouteId?(ev)=>showTurnPopup(route,i,ev):(ev)=>showSegPopup(`lev`,i,ev,route)))):null});
+      const key=keyOf(pts[i].id,pts[i+1].id),calcSel=calc.on&&calcHas(key),ctrlSel=ctrlObjectEdgeSelected(`lev`,route,i,pts[i],pts[i+1]),sel=calcSel||ctrlSel;
+      drawSeg(`lev`,A,B,{color:(ctrlSel||calcSel)?`#ffc145`:`#b388ff`,weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[i].knownEdgeAfter,onClick:isAct?(ev)=>{if(calcEdgeInputActive(ev)){toggleCalc(`lev`,pts[i].id,pts[i+1].id);return;}if(pts[i].knownEdgeAfter)return;if(route.linkedRouteId)showTurnPopup(route,i,ev);else showSegPopup(`lev`,i,ev,route);}:null});
     }
     if(route.closed&&pts.length>=3){
       const last=pts[pts.length-1],first=pts[0];
       const A=last.marker.getLatLng(),B=first.marker.getLatLng(),d=vincenty(last.wgs,first.wgs);
-      const key=keyOf(last.id,first.id),sel=(calc.on&&calcHas(key))||ctrlObjectEdgeSelected(`lev`,route,pts.length-1,last,first);
-      const ctrlSel=ctrlObjectEdgeSelected(`lev`,route,pts.length-1,last,first);
-      drawSeg(`lev`,A,B,{color:ctrlSel?`#ffc145`:(sel?`#ffffff`:`#b388ff`),weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[pts.length-1].knownEdgeAfter,onClick:isAct?(calc.on?()=>toggleCalc(`lev`,last.id,first.id):(pts[pts.length-1].knownEdgeAfter?null:(route.linkedRouteId?(ev)=>showTurnPopup(route,pts.length-1,ev):(ev)=>showSegPopup(`lev`,pts.length-1,ev,route)))):null});
+      const key=keyOf(last.id,first.id),calcSel=calc.on&&calcHas(key),ctrlSel=ctrlObjectEdgeSelected(`lev`,route,pts.length-1,last,first),sel=calcSel||ctrlSel;
+      drawSeg(`lev`,A,B,{color:(ctrlSel||calcSel)?`#ffc145`:`#b388ff`,weight:sel?5:3,dist:isAct?d:undefined,knownEdge:!!pts[pts.length-1].knownEdgeAfter,onClick:isAct?(ev)=>{if(calcEdgeInputActive(ev)){toggleCalc(`lev`,last.id,first.id);return;}if(pts[pts.length-1].knownEdgeAfter)return;if(route.linkedRouteId)showTurnPopup(route,pts.length-1,ev);else showSegPopup(`lev`,pts.length-1,ev,route);}:null});
     }
   });
   M.lev.activeRouteId=savedId;
@@ -138,16 +134,4 @@ function refreshLev(){
   M.lev.activeRouteId=savedIdA;
   html+=`<div class="note">二等限差参考：`+(alr.closed?`环闭合差 ≤ ±4√L = ±`+(4*Math.sqrt(Lkm)).toFixed(1)+` mm`:`往返不符值 ≤ ±4√L = ±`+(4*Math.sqrt(Lkm)).toFixed(1)+` mm`)+`（L=`+Lkm.toFixed(2)+` km）；视线长 ≤ `+M.lev.maxSight+` m。</div>`;
   box.innerHTML=html;wireLev();
-}
-let _linkLev=true;
-function wireLev(){
-  const b=document.getElementById(`copyFromTrav`);if(!b)return;
-  const wrap=b.parentElement||b.parentNode;
-  if(!document.getElementById(`linkLevCb`)){
-    const lbl=document.createElement(`label`);lbl.style.cssText=`display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);margin-top:2px;margin-bottom:4px;cursor:pointer;`;
-    const cb=document.createElement(`input`);cb.type=`checkbox`;cb.id=`linkLevCb`;cb.checked=_linkLev;cb.onchange=()=>{_linkLev=cb.checked;};
-    lbl.appendChild(cb);lbl.appendChild(document.createTextNode(`联动（导线点移动/删除时同步）`));
-    if(wrap&&b.nextSibling)wrap.insertBefore(lbl,b.nextSibling);else if(wrap)wrap.appendChild(lbl);
-  }
-  b.onclick=async()=>{if(!M.trav.routes.length){toast(`没有导线可以复制`);return;}if(M.lev.routes.length){const r=await showConfirm(`覆盖水准路线`,`<p>当前已有 `+M.lev.routes.length+` 条水准路线，复制将全部替换。确定继续？</p>`,[{text:`取消`,value:`cancel`},{text:`确定复制`,value:`ok`,cls:`go`}]);if(!r||r.action===`cancel`)return;}const linked=_linkLev;pushUndo();M.lev.routes.forEach(r=>{r.pts.forEach(p=>map.removeLayer(p.marker));});M.lev.routes=[];const idMap={};M.trav.routes.forEach(tr=>{const lr={id:++uid,name:tr.name,prefix:tr.prefix||``,closed:!!tr.closed,hidden:!!tr.hidden,locked:false,expanded:!!tr.expanded,parentId:null,linkedRouteId:linked?tr.id:null,pts:[]};idMap[tr.id]=lr.id;M.lev.routes.push(lr);tr.pts.forEach(sp=>{const p={id:++uid,kind:sp.kind,name:sp.name,wgs:{lat:sp.wgs.lat,lng:sp.wgs.lng},sync:false,link:linked?sp.id:null,knownEdgeAfter:!!sp.knownEdgeAfter};p.marker=L.marker(displayLL(p.wgs),{draggable:!linked}).addTo(map);lr.pts.push(p);bindMarker(`lev`,p);});});M.lev.routes.forEach((lr,i)=>{const tr=M.trav.routes[i];if(tr.parentId&&idMap[tr.parentId])lr.parentId=idMap[tr.parentId];});M.lev.activeRouteId=M.lev.routes.length?M.lev.routes[0].id:null;refresh();toast(`已从导线复制 `+M.lev.routes.length+` 条路线到水准`+(linked?`（联动）`:``));};
 }
