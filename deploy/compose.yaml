@@ -1,0 +1,32 @@
+services:
+  app:
+    image: "survey-tool:${SURVEY_TOOL_IMAGE_TAG:-latest}"
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: survey-tool-app
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /config
+      - /data
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 64m
+    cpus: 0.25
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/index.html"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      default:
+        aliases:
+          - survey-tool-app
+
+networks:
+  default:
+    external: true
+    name: nocturne-core_default
+
